@@ -96,7 +96,7 @@
       }
     },
     "com.unity.render-pipelines.high-definition": {
-      "version": "file:com.unity.render-pipelines.high-definition@14.0.12",
+      "version": "file:com.unity.render-pipelines.high-definition",
       "depth": 0,
       "source": "embedded",
       "dependencies": {
