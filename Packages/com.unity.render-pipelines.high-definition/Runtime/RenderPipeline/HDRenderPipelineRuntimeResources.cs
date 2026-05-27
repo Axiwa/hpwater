@@ -14,6 +14,15 @@ namespace UnityEngine.Rendering.HighDefinition
             [Reload("Runtime/Material/Lit/Lit.shader")]
             public Shader defaultPS;
 
+            [Reload("Runtime/HanPiWater/HPWater.shader")]
+            public Shader hanPiWaterShader;
+            [Reload("Runtime/HanPiWater/Caustic/HPWaterCausticCompute.compute")]
+            public ComputeShader CausticComputeCS;
+            [Reload("Runtime/HanPiWater/Deferred/HPWaterVolumeDeferred.compute")]
+            public ComputeShader WaterVolumeCS;
+            [Reload("Runtime/HanPiWater/FluidDynamics/HPWaterWaveEquation.compute")]
+            public ComputeShader WaveEquationCS;
+
             // Debug
             [Reload("Runtime/Debug/DebugDisplayLatlong.Shader")]
             public Shader debugDisplayLatlongPS;

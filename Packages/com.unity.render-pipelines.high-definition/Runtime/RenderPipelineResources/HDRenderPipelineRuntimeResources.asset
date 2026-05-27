@@ -14,6 +14,10 @@ MonoBehaviour:
   m_EditorClassIdentifier: 
   shaders:
     defaultPS: {fileID: 4800000, guid: 6e4ae4064600d784cac1e41a9e6f2e59, type: 3}
+    hanPiWaterShader: {fileID: 4800000, guid: 09ca55a9f1fd94f439e28cc17b5aa9b1, type: 3}
+    CausticComputeCS: {fileID: 7200000, guid: c0e33f610d6c74444b507a2a5ead2744, type: 3}
+    WaterVolumeCS: {fileID: 7200000, guid: ce31264519119a648b38ce0a367e647d, type: 3}
+    WaveEquationCS: {fileID: 7200000, guid: 29358f893780c51438abc4a89ce9f8c4, type: 3}
     debugDisplayLatlongPS: {fileID: 4800000, guid: c1d1d149a043a5349ba367da6c2051ba,
       type: 3}
     debugViewMaterialGBufferPS: {fileID: 4800000, guid: 439949ea1bfa91b4ba0d04269fcde33d,
@@ -118,6 +122,7 @@ MonoBehaviour:
     gradientSkyPS: {fileID: 4800000, guid: 2b5d4f1b26f03dc4a873b093e0c4adb1, type: 3}
     ambientProbeConvolutionCS: {fileID: 7200000, guid: 6d048f7b1bd45e840b4e79ec92639fa8,
       type: 3}
+    skyLUTGenerator: {fileID: 7200000, guid: 79224112d91b32241be6b65802863db4, type: 3}
     groundIrradiancePrecomputationCS: {fileID: 7200000, guid: eb6ae6f326207ee4d987a3e5adddf63a,
       type: 3}
     inScatteredRadiancePrecomputationCS: {fileID: 7200000, guid: 70c69d514688f8545855680760d77418,
@@ -126,7 +131,6 @@ MonoBehaviour:
       type: 3}
     planarReflectionFilteringCS: {fileID: 7200000, guid: 9f3f8a01b8caaaa4595591dc96d43dd2,
       type: 3}
-    skyLUTGenerator: {fileID: 7200000, guid: 79224112d91b32241be6b65802863db4, type: 3}
     cloudLayerPS: {fileID: 4800000, guid: 001a47fa123e95a4bba13ecb0442d944, type: 3}
     bakeCloudTextureCS: {fileID: 7200000, guid: 09a7f6850ee9fb4439e5ebd632127da5,
       type: 3}

@@ -444,7 +444,7 @@ namespace UnityEngine.Rendering.HighDefinition
                         new Vector4(lowResWidth, lowResHeight, 1.0f / lowResWidth, 1.0f / lowResHeight));
 
                     // 绑定光照缓冲区
-                    BindGlobalLightingBuffers(data.lightingBuffers, ctx.cmd, false);
+                    BindGlobalLightingBuffers(data.lightingBuffers, ctx.cmd);
 
                     // 绑定光源列表
                     ctx.cmd.SetComputeBufferParam(data.m_HanPiWaterVolumeCS, data.m_HanPiWaterVolumeKernel,

@@ -1144,6 +1144,12 @@ namespace UnityEngine.Rendering.HighDefinition
         public static readonly int _CameraInverseViewProjection_NO = Shader.PropertyToID("_CameraInverseViewProjection_NO");
         public static readonly int _IsObliqueProjectionMatrix = Shader.PropertyToID("_IsObliqueProjectionMatrix");
         public static readonly int _VolumetricMaterialDataCBuffer = Shader.PropertyToID("VolumetricMaterialDataCBuffer");
+
+        public static readonly int _CausticCascadeAtlas_Float = Shader.PropertyToID("_CausticCascadeAtlas_Float");
+        public static readonly int _CausticCascadeAtlas_R = Shader.PropertyToID("_CausticCascadeAtlas_R");
+        public static readonly int _CausticCascadeAtlas_G = Shader.PropertyToID("_CausticCascadeAtlas_G");
+        public static readonly int _CausticCascadeAtlas_B = Shader.PropertyToID("_CausticCascadeAtlas_B");
+        public static readonly int _WaterNormalAtlas = Shader.PropertyToID("_WaterNormalAtlas");
     }
 
     /// <summary>

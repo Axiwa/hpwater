@@ -27,6 +27,8 @@ struct HDShadowContext { float unused; };
 // It allow the lightloop to have transmit sampling information (do we use atlas, or texture array etc...)
 struct LightLoopContext
 {
+    float3 causticValue;
+
     int sampleReflection;
 #ifdef APPLY_FOG_ON_SKY_REFLECTIONS
     float3 positionWS; // For sky reflection, we need position to evalute height base fog
@@ -418,12 +420,14 @@ void InitContactShadow(PositionInputs posInput, inout LightLoopContext context)
     // We store inverse contact shadow so neutral is white. So either we sample inside or outside the texture it return 1 in case of neutral
     uint packedContactShadow = LOAD_TEXTURE2D_X(_ContactShadowTexture, posInput.positionSS).x;
     UnpackContactShadowData(packedContactShadow, context.contactShadowFade, context.contactShadow);
+    context.causticValue = 1;
 }
 
 void InvalidateConctactShadow(PositionInputs posInput, inout LightLoopContext context)
 {
     context.contactShadowFade = 0.0;
     context.contactShadow = 0;
+    context.causticValue = 1;
 }
 
 float GetContactShadow(LightLoopContext lightLoopContext, int contactShadowMask, float rayTracedShadow)

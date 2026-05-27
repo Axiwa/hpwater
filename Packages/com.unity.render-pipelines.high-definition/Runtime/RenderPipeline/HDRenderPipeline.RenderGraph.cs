@@ -13,6 +13,8 @@ namespace UnityEngine.Rendering.HighDefinition
 {
     public partial class HDRenderPipeline
     {
+        HPWaterGbufferData hpwatergbufferdata;
+        
         // Needed only because of custom pass. See comment at ResolveMSAAColor.
         TextureHandle m_NonMSAAColorBuffer;
 
@@ -233,6 +235,8 @@ namespace UnityEngine.Rendering.HighDefinition
                     {
                         prepassOutput.resolvedMotionVectorsBuffer = ResolveMotionVector(m_RenderGraph, hdCamera, prepassOutput.motionVectorsBuffer);
                     }
+
+                    colorBuffer = RenderHPWater(m_RenderGraph, hdCamera, colorBuffer, currentColorPyramid, ref prepassOutput, gpuLightListOutput, shadowResult, lightingBuffers, volumetricLighting);
 
                     // We push the motion vector debug texture here as transparent object can overwrite the motion vector texture content.
                     if (m_Asset.currentPlatformRenderPipelineSettings.supportMotionVectors)
@@ -1347,6 +1351,22 @@ namespace UnityEngine.Rendering.HighDefinition
 
                 return passData.flagMask;
             }
+        }
+
+        TextureHandle RenderHPWater(RenderGraph renderGraph,
+            HDCamera hdCamera,
+            TextureHandle colorBuffer,
+            TextureHandle currentColorPyramid,
+            ref PrepassOutput prepassOutput,
+            in BuildGPULightListOutput lightLists,
+            ShadowResult shadowResult,
+            in LightingBuffers lightingBuffers,
+            TextureHandle volumetricLighting)
+        {
+            var waterRefractionData = RenderHPWaterRefraction(m_RenderGraph, hdCamera, prepassOutput.depthBuffer, prepassOutput.depthPyramidTexture, hpwatergbufferdata.waterGBuffer0);
+            var waterdeferred = RenderHPWaterDeferredLighting(m_RenderGraph, hdCamera, colorBuffer, currentColorPyramid, null /* causticToDeferredData */, hpwatergbufferdata /* RenderHPWaterDeferredLighting */, prepassOutput.depthPyramidTexture, lightingBuffers, lightLists, shadowResult, prepassOutput.motionVectorsBuffer, waterRefractionData, lightingBuffers.ssrLightingBuffer, volumetricLighting);
+
+            return waterdeferred;
         }
 
         TextureHandle RenderTransparency(RenderGraph renderGraph,
