@@ -7,3 +7,5 @@ Logs/
 .vsconfig
 .vs/
 obj/
+.codely-cli/
+.com-unity-codely.json

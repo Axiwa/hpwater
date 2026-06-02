@@ -14,6 +14,7 @@ namespace UnityEngine.Rendering.HighDefinition
     public partial class HDRenderPipeline
     {
         HPWaterGbufferData hpwatergbufferdata;
+        CausticPackage causticToDeferredData;
         
         // Needed only because of custom pass. See comment at ResolveMSAAColor.
         TextureHandle m_NonMSAAColorBuffer;
@@ -177,6 +178,10 @@ namespace UnityEngine.Rendering.HighDefinition
 
                     StartXRSinglePass(m_RenderGraph, hdCamera);
 
+                    causticToDeferredData = RenderCaustics(m_RenderGraph, hdCamera, cullingResults, shadowResult, 0);
+
+                    // RenderHPWaterFluidDynamics(m_RenderGraph, hdCamera, cullingResults, 0);
+
                     // Evaluate the clear coat mask texture based on the lit shader mode
                     var clearCoatMask = hdCamera.frameSettings.litShaderMode == LitShaderMode.Deferred ? prepassOutput.gbuffer.mrt[2] : m_RenderGraph.defaultResources.blackTextureXR;
                     lightingBuffers.ssrLightingBuffer = RenderSSR(m_RenderGraph, hdCamera, ref prepassOutput, clearCoatMask, rayCountTexture, m_SkyManager.GetSkyReflection(hdCamera), transparent: false);
@@ -227,7 +232,7 @@ namespace UnityEngine.Rendering.HighDefinition
                     ClearStencilBuffer(m_RenderGraph, hdCamera, prepassOutput.depthBuffer);
 
                     colorBuffer = RenderTransparency(m_RenderGraph, hdCamera, colorBuffer, prepassOutput.resolvedNormalBuffer, vtFeedbackBuffer, currentColorPyramid, volumetricLighting, rayCountTexture, m_SkyManager.GetSkyReflection(hdCamera), gpuLightListOutput, ref prepassOutput,
-                        shadowResult, cullingResults, customPassCullingResults, aovRequest, aovCustomPassBuffers);
+                        shadowResult, cullingResults, customPassCullingResults, aovRequest, aovCustomPassBuffers, lightingBuffers);
 
                     uiBuffer = RenderTransparentUI(m_RenderGraph, hdCamera);
 
@@ -235,8 +240,6 @@ namespace UnityEngine.Rendering.HighDefinition
                     {
                         prepassOutput.resolvedMotionVectorsBuffer = ResolveMotionVector(m_RenderGraph, hdCamera, prepassOutput.motionVectorsBuffer);
                     }
-
-                    colorBuffer = RenderHPWater(m_RenderGraph, hdCamera, colorBuffer, currentColorPyramid, ref prepassOutput, gpuLightListOutput, shadowResult, lightingBuffers, volumetricLighting);
 
                     // We push the motion vector debug texture here as transparent object can overwrite the motion vector texture content.
                     if (m_Asset.currentPlatformRenderPipelineSettings.supportMotionVectors)
@@ -1360,13 +1363,15 @@ namespace UnityEngine.Rendering.HighDefinition
             ref PrepassOutput prepassOutput,
             in BuildGPULightListOutput lightLists,
             ShadowResult shadowResult,
+            CullingResults cullingResults,
             in LightingBuffers lightingBuffers,
             TextureHandle volumetricLighting)
         {
             var waterRefractionData = RenderHPWaterRefraction(m_RenderGraph, hdCamera, prepassOutput.depthBuffer, prepassOutput.depthPyramidTexture, hpwatergbufferdata.waterGBuffer0);
-            var waterdeferred = RenderHPWaterDeferredLighting(m_RenderGraph, hdCamera, colorBuffer, currentColorPyramid, null /* causticToDeferredData */, hpwatergbufferdata /* RenderHPWaterDeferredLighting */, prepassOutput.depthPyramidTexture, lightingBuffers, lightLists, shadowResult, prepassOutput.motionVectorsBuffer, waterRefractionData, lightingBuffers.ssrLightingBuffer, volumetricLighting);
+            
+            var waterdeferred = RenderHPWaterDeferredLighting(m_RenderGraph, hdCamera, colorBuffer, currentColorPyramid, causticToDeferredData, hpwatergbufferdata /* RenderHPWaterDeferredLighting */, prepassOutput.depthPyramidTexture, lightingBuffers, lightLists, shadowResult, prepassOutput.motionVectorsBuffer, waterRefractionData, lightingBuffers.ssrLightingBuffer, volumetricLighting);
 
-            return waterdeferred;
+            return waterdeferred; //waterRefractionData.refractionData;
         }
 
         TextureHandle RenderTransparency(RenderGraph renderGraph,
@@ -1384,7 +1389,8 @@ namespace UnityEngine.Rendering.HighDefinition
             CullingResults cullingResults,
             CullingResults customPassCullingResults,
             AOVRequestData aovRequest,
-            List<RTHandle> aovCustomPassBuffers)
+            List<RTHandle> aovCustomPassBuffers,
+            in LightingBuffers lightingBuffers)
         {
             // Transparent (non recursive) objects that are rendered in front of transparent (recursive) require the recursive rendering to be executed for that pixel.
             // This means our flagging process needs to happen before the transparent depth prepass as we use the depth to discriminate pixels that do not need recursive rendering.
@@ -1394,6 +1400,7 @@ namespace UnityEngine.Rendering.HighDefinition
 
             // Render the water gbuffer (and prepare for the transparent SSR pass)
             var waterGBuffer = RenderWaterGBuffer(m_RenderGraph, hdCamera, prepassOutput.depthBuffer, prepassOutput.normalBuffer, currentColorPyramid, prepassOutput.depthPyramidTexture, lightLists);
+            hpwatergbufferdata = RenderHPWaterGbuffer(m_RenderGraph, hdCamera, cullingResults, 0, prepassOutput.depthBuffer, prepassOutput.normalBuffer);
 
             // Render the transparent SSR lighting
             var ssrLightingBuffer = RenderSSR(renderGraph, hdCamera, ref prepassOutput, renderGraph.defaultResources.blackTextureXR, rayCountTexture, skyTexture, transparent: true);
@@ -1420,6 +1427,7 @@ namespace UnityEngine.Rendering.HighDefinition
             }
 
             // Render the deferred water lighting
+            colorBuffer = RenderHPWater(m_RenderGraph, hdCamera, colorBuffer, currentColorPyramid, ref prepassOutput, lightLists, shadowResult, cullingResults, lightingBuffers, volumetricLighting);
             RenderWaterLighting(m_RenderGraph, hdCamera, colorBuffer, prepassOutput.depthBuffer, prepassOutput.depthPyramidTexture, volumetricLighting, ssrLightingBuffer, waterGBuffer, lightLists);
 
             // We don't have access to the color pyramid with transparent if rough refraction is disabled

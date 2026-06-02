@@ -243,7 +243,6 @@ namespace UnityEngine.Rendering.HighDefinition
                 RenderDBuffer(renderGraph, hdCamera, ref result, cullingResults);
 
                 RenderGBuffer(renderGraph, sssBuffer, vtFeedbackBuffer, ref result, cullingResults, hdCamera);
-                hpwatergbufferdata = RenderHPWaterGbuffer(renderGraph, hdCamera, cullingResults, 0, result.depthBuffer, result.normalBuffer);
 
                 if (shouldRenderMotionVectorAfterGBuffer)
                 {

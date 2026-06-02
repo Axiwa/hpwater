@@ -34,6 +34,7 @@ struct SurfaceData
 #include "Packages/com.unity.render-pipelines.high-definition/Runtime/Material/BuiltinGIUtilities.hlsl"
 #include "Packages/com.unity.render-pipelines.high-definition/Runtime/Material/NormalBuffer.hlsl"
 #include "Packages/com.unity.render-pipelines.core/ShaderLibrary/VolumeRendering.hlsl"
+#include "Packages/com.unity.render-pipelines.core/ShaderLibrary/EntityLighting.hlsl"
 
 
 //-----------------------------------------------------------------------------
@@ -392,7 +393,7 @@ void DecodeFromHPWaterGBuffer(uint2 positionSS, out BSDFData bsdfData, out Built
 
 
     // Decompress feature-agnostic data from the G-Buffer.
-    bsdfData.normalWS = safeNormalize(bsdfData.normalWS);
+    bsdfData.normalWS = SafeNormalize(bsdfData.normalWS);
     // 水面 geomNormalWS 使用 normalWS（不再单独存储）
     bsdfData.geomNormalWS = bsdfData.normalWS;
     bsdfData.perceptualRoughness = RoughnessToPerceptualRoughness(bsdfData.roughness);
