@@ -76,7 +76,7 @@ HPWaterGBufferOutput Frag(PackedVaryingsToPS packedInput
     waterSurfaceData.normalWS = surfaceData.normalWS;
     waterSurfaceData.perceptualRoughness = PerceptualSmoothnessToPerceptualRoughness(surfaceData.perceptualSmoothness);
     waterSurfaceData.foam = surfaceData.foam;  // foam 存储在 metallic 中
-    waterSurfaceData.scatterColor = surfaceData.absorptionColor;  // scatter 系数
+    waterSurfaceData.scatterColor = surfaceData.scatterColor;  // scatter 系数
     waterSurfaceData.absorptionColor = surfaceData.absorptionColor;  // absorption 系数
 
     // 编码到 GBuffer (3 个)

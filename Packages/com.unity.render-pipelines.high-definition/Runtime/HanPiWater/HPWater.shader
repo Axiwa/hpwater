@@ -292,7 +292,7 @@ Shader "Hidden/HDRP/HanPiWater/HPWater"
             // Ray Marching 参数，在这里放弃了Hiz光线步进，因为这里并不需要处理很远的距离，用Hiz反而是负优化
             //这里的随机光线步进是为了查出来折射后的真实大概深度，不然折射后的颜色会停留在当前物体的深度上，因此查找的位置不需要很精确
         #define REFRACT_SAMPLE_COUNT _Ray_Marching_Sample_Count
-        #define REFRACT_THICKNESS_OFFSET 2 // 厚度阈值，单位：米       
+        #define REFRACT_THICKNESS_OFFSET 0.1 // 厚度阈值，单位：米       
 
             //NDC空间光线步进
             float3 rayStart = waterWorldPos;

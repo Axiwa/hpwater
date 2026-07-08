@@ -65,7 +65,7 @@ namespace UnityEngine.Rendering.HighDefinition
                 _ForwardScatterBlurDensity = 0.5f,
                 _PhaseG = 0.80f,
                 _CausticShadowAlphaClipThreshold = 0.8f,
-                _Is_Use_RGB_Caustic = -1,
+                _Is_Use_RGB_Caustic = 2,
                 _UnusedHPWaterGlobalParams = 0.0f
             };
         }
@@ -89,7 +89,7 @@ namespace UnityEngine.Rendering.HighDefinition
                 causticToDeferredData = IsCausticDataValid(causticToDeferredData, renderGraph);
                 // 获取焦散模式
                 int causticMode = causticToDeferredData.causticEnabled ? (causticToDeferredData.useRGBCaustic ? 1 : 0) : -1;
-                passData.globalParams._Is_Use_RGB_Caustic = causticMode;
+                passData.globalParams._Is_Use_RGB_Caustic = 1; //causticMode;
 
                 builder.SetRenderFunc((HPWaterGlobalShaderVariablePassData data, RenderGraphContext ctx) =>
                 {

@@ -272,7 +272,7 @@ void HanPiWaterVolume(uint3 dispatchThreadId : SV_DispatchThreadID, uint2 groupT
 
     WaterVolumeLightLoop::LightLoop(V, posInput, preLightData, bsdfData, builtinData, UINT_MAX, lightLoopOutput);
 #if defined(HP_WATER_VOLUME)
-    transmittance = 0.7;
+    transmittance = 0.5;
 #endif
 
     // 获取光照结果
@@ -287,7 +287,7 @@ void HanPiWaterVolume(uint3 dispatchThreadId : SV_DispatchThreadID, uint2 groupT
     // 评估雾效并合成
     float3 volColor, volOpacity;
     EvaluateAtmosphericScattering(posInput, V, volColor, volOpacity);
-    //finalColor = finalColor * (1 - volOpacity) + (1) * volColor;
+    finalColor = finalColor * (1 - volOpacity) + (1) * volColor;
 
 
     // ========================================================================
@@ -796,19 +796,20 @@ void HanPiWaterComposite(uint3 dispatchThreadId : SV_DispatchThreadID)
     float3 sampleShort = HPSampleCameraColor(refractedUV + dispersionUV, blurMipLevel).rgb;  // 短波(蓝)折射多
     // 光谱重叠：各输出通道由多采样点混合，模拟波长响应曲线重叠，过渡更平滑
     // R主要来自Long、G主要来自Mid、B主要来自Short，交叉项模拟视锥重叠
-    float3 sceneColor = sampleMid;
-    
-    float3(
+    float3 sceneColor = float3(
         dot(float3(0.90, 0.05, 0.05), float3(sampleLong.r, sampleMid.r, sampleShort.r)),
         dot(float3(0.05, 0.90, 0.05), float3(sampleLong.g, sampleMid.g, sampleShort.g)),
         dot(float3(0.05, 0.05, 0.90), float3(sampleLong.b, sampleMid.b, sampleShort.b))
     );
+
+    float3 neighborColor = LOAD_TEXTURE2D_X(_HPWaterLowResColor, lowResCoordInt).rgb;
+    
     finalColor += sceneColor * transmittance;
 
     //NaN保护
     finalColor = any(isnan(finalColor)) ? float3(1, 1, 0) : finalColor;
     
     // 输出最终颜色
-    _HPWaterCompositeOutput[COORD_TEXTURE2D_X(fullResCoord)] = float4(finalColor,1);
+    _HPWaterCompositeOutput[COORD_TEXTURE2D_X(fullResCoord)] = float4(finalColor, 1);
 }
 #undef SPECULAR_LIGHTING_ON//关闭镜面反射渲染

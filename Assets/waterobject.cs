@@ -29,6 +29,7 @@ public class WaterRefractionManager : MonoBehaviour
     private HDRenderPipeline.CausticInputData ProvideCausticParameters()
     {
         HDRenderPipeline.CausticInputData data = new HDRenderPipeline.CausticInputData();
+        data.useRGBCaustic = true;
 
         return data;
     }

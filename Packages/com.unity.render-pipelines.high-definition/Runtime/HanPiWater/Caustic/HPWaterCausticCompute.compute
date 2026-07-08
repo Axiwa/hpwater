@@ -2,8 +2,8 @@
 #pragma kernel AtrousDenoiseFirst_Single
 
 
-/* #pragma enable_d3d11_debug_symbols
-#pragma use_dxc         
+#pragma enable_d3d11_debug_symbols
+/* #pragma use_dxc         
 #pragma target 6.0 */
 
 #pragma multi_compile _ _USE_RGB_CAUSTIC_ON
@@ -113,6 +113,7 @@ void CausticCaculateKernel (uint3 id : SV_DispatchThreadID)
     float4 normalData = _WaterGbuffer0Atlas.Load(int3(normalCoord, 0));
     
     //解码法线数据
+    _RefractionStrength = 1;
     NormalData normalDataDecode;
     DecodeFromNormalBuffer(normalData, normalDataDecode);
     float3 worldNormal = normalDataDecode.normalWS * float3(_RefractionStrength,1,_RefractionStrength);
@@ -174,11 +175,13 @@ void CausticCaculateKernel (uint3 id : SV_DispatchThreadID)
         return;
     }
 #endif
-    
+
     //准备折射数据
     static const float eta = 1.0 / 1.33;
     // 使用实际的主光源方向（HDRP定向光）
     float3 LightDir = normalize(_MainLightDirection.xyz);  // 从 Vector4 获取 xyz
+
+    //_DispersionStrength = 1;
     
 #if defined(_USE_RGB_CAUSTIC_ON)
     float3 refractedDir_R = refract(LightDir, worldNormal, eta + _DispersionStrength);
@@ -325,9 +328,9 @@ void CausticCaculateKernel (uint3 id : SV_DispatchThreadID)
             all(pixelCoordB < uint2(rtSizeX, rtSizeX)) &&
             intensityValue > 0)
         {
-            InterlockedAdd(_causticIrradianceRT_R[pixelCoordR], intensityValue);
-            InterlockedAdd(_causticIrradianceRT_G[pixelCoordG], intensityValue);
-            InterlockedAdd(_causticIrradianceRT_B[pixelCoordB], intensityValue);
+            InterlockedAdd(_causticIrradianceRT_R[pixelCoordR], 1);
+            InterlockedAdd(_causticIrradianceRT_G[pixelCoordG], 1);
+            InterlockedAdd(_causticIrradianceRT_B[pixelCoordB], 1);
         }
     #else
         float2 FinalUV_G = ndc_G * float2(rtSizeX, rtSizeX);

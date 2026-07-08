@@ -1,6 +1,6 @@
-#if (SHADERPASS != SHADERPASS_DEPTH_ONLY && SHADERPASS != SHADERPASS_SHADOWS && SHADERPASS != SHADERPASS_TRANSPARENT_DEPTH_PREPASS && SHADERPASS != SHADERPASS_TRANSPARENT_DEPTH_POSTPASS)
-#error SHADERPASS_is_not_correctly_define
-#endif
+// #if (SHADERPASS != SHADERPASS_DEPTH_ONLY && SHADERPASS != SHADERPASS_SHADOWS && SHADERPASS != SHADERPASS_TRANSPARENT_DEPTH_PREPASS && SHADERPASS != SHADERPASS_TRANSPARENT_DEPTH_POSTPASS)
+// #error SHADERPASS_is_not_correctly_define
+// #endif
 #include "Packages/com.unity.render-pipelines.high-definition/Runtime/Material/NormalBuffer.hlsl"
 #include "Packages/com.unity.render-pipelines.high-definition/Runtime/HanPiWater/Caustic/HPWaterCaustic.hlsl"
 #include "Packages/com.unity.render-pipelines.high-definition/Runtime/RenderPipeline/ShaderPass/VertMesh.hlsl"
@@ -87,9 +87,9 @@ void Frag(PackedVaryingsToPS packedInput, out float4 gbuffer0 : SV_Target0)
     depthColor.a = SharpenAlpha(builtinData.opacity, builtinData.alphaClipTreshold);
     #endif
 
-    #if defined(WRITE_NORMAL_BUFFER)
-    EncodeIntoNormalBuffer(ConvertSurfaceDataToNormalData(surfaceData), outNormalBuffer);
-    #endif
+    // #if defined(WRITE_NORMAL_BUFFER)
+    // EncodeIntoNormalBuffer(ConvertSurfaceDataToNormalData(surfaceData), outNormalBuffer);
+    // #endif
 
     #if defined(WRITE_DECAL_BUFFER) && !defined(_DISABLE_DECALS)
     DecalPrepassData decalPrepassData;
@@ -116,8 +116,8 @@ void Frag(PackedVaryingsToPS packedInput, out float4 gbuffer0 : SV_Target0)
     else
     {
         // 模式2：只渲染 gbuffer1（吸收/散射）
-        float3 absorptionColor = surfaceData.baseColor.rgb;
-        float3 scatterColor = surfaceData.transmittanceColor.rgb;
+        float3 absorptionColor = surfaceData.absorptionColor.rgb;
+        float3 scatterColor = surfaceData.scatterColor.rgb;
         EncodeHPWaterCausticGBuffer(absorptionColor, scatterColor, gbuffer0);
     }
 }

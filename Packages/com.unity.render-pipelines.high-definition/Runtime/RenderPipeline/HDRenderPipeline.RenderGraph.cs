@@ -178,7 +178,6 @@ namespace UnityEngine.Rendering.HighDefinition
 
                     StartXRSinglePass(m_RenderGraph, hdCamera);
 
-                    causticToDeferredData = RenderCaustics(m_RenderGraph, hdCamera, cullingResults, shadowResult, 0);
 
                     // RenderHPWaterFluidDynamics(m_RenderGraph, hdCamera, cullingResults, 0);
 
@@ -1401,6 +1400,8 @@ namespace UnityEngine.Rendering.HighDefinition
             // Render the water gbuffer (and prepare for the transparent SSR pass)
             var waterGBuffer = RenderWaterGBuffer(m_RenderGraph, hdCamera, prepassOutput.depthBuffer, prepassOutput.normalBuffer, currentColorPyramid, prepassOutput.depthPyramidTexture, lightLists);
             hpwatergbufferdata = RenderHPWaterGbuffer(m_RenderGraph, hdCamera, cullingResults, 0, prepassOutput.depthBuffer, prepassOutput.normalBuffer);
+
+            causticToDeferredData = RenderCaustics(m_RenderGraph, hdCamera, cullingResults, shadowResult, 0);
 
             // Render the transparent SSR lighting
             var ssrLightingBuffer = RenderSSR(renderGraph, hdCamera, ref prepassOutput, renderGraph.defaultResources.blackTextureXR, rayCountTexture, skyTexture, transparent: true);

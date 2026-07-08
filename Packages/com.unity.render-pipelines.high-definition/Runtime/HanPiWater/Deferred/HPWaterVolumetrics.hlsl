@@ -331,9 +331,9 @@ float3 WaterVolumetrics(
             lastShadowValue = shadowValue;
         }
         
-        //causticValue = ComputeCausticValue(samplePosLinear,shadowValue,featureFlags,lightLoopContext,posInput,bsdfData); 
+        causticValue = ComputeCausticValue(samplePosLinear,shadowValue,featureFlags,lightLoopContext,posInput,bsdfData); 
         //焦散的分布会从水面到水下，呈无分散到有分散，到达底部将会变成受折射后的焦散图采样结果
-        causticValue = 1;
+        //causticValue = 1;
 
         // ===== 一次散射：直接光照 =====
         float cosTheta = dot(safeNormalize(samplePos), safeNormalize(LightDir));
