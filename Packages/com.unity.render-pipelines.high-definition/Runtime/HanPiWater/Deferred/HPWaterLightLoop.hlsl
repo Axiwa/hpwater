@@ -318,7 +318,7 @@ uint featureFlags,out LightLoopOutput lightLoopOutput)
 
 #if defined(USE_PRECOMPUTED_REFRACTION)
     // 使用预计算的折射数据（来自 HPWater.Shader）
-    // 注意：_HPWaterPrecomputedRefractDepth 现在存储的是线性深度，此处赋值仅为保持变量初始化
+    // The precomputed refraction depth stores raw/device depth.
     sceneRawDepth = _HPWaterPrecomputedRefractDepth;
     refractedBackWorldPos = _HPWaterPrecomputedRefractWorldPos;
     RefractWaterScreenCoord = _HPWaterPrecomputedRefractUV;

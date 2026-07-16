@@ -215,7 +215,7 @@ Shader "Hidden/HDRP/HanPiWater/HPWater"
         
         int _Ray_Marching_Sample_Count;
 
-        //XYZW：XY为UV偏移，Z为折射后的深度，W为是否为水面        
+        // XY = UV offset, Z = raw depth at the final refracted UV, W = water mask.
         float4 FragRefraction(Varyings input) : SV_Target
         {
             UNITY_SETUP_STEREO_EYE_INDEX_POST_VERTEX(input);
@@ -234,17 +234,12 @@ Shader "Hidden/HDRP/HanPiWater/HPWater"
 
             // 读取场景深度（从 _CameraDepthTexture，已覆盖绑定为 depthPyramid，不含水面）    
             float sceneDepth = LOAD_TEXTURE2D_X(_CameraDepthTexture, positionSS).r;
-            // 读取水体法线 (从 GBuffer0)
-            
-            [branch]
-            if (sceneDepth == UNITY_RAW_FAR_CLIP_VALUE)
-            {                
-                return float4(0, 0, 0, 1);
-            }
+            bool directViewHitsSky = IsSky(sceneDepth);
 
             // 读取水面深度（从 _DepthTexture，包含水面）
             float waterDepth = LOAD_TEXTURE2D_X(_DepthTexture, positionSS).r;
 
+             // 读取水体法线 (从 GBuffer0)
             float4 normalData = LOAD_TEXTURE2D_X(_HPWaterGBuffer0, positionSS);
             NormalData normalDataDecode;
             DecodeFromNormalBuffer(normalData, normalDataDecode);
@@ -269,19 +264,23 @@ Shader "Hidden/HDRP/HanPiWater/HPWater"
                 
             static const float eta = 1.0 / 1.33; // 空气到水的折射率
 
-            float3 refractedWorldPos = sceneWorldPos;            
-            float3 waterCrossDir = safeNormalize(sceneWorldPos - waterWorldPos);
+            float3 refractedWorldPos;            
             // 注意：在 Camera Relative Rendering 模式下，waterWorldPos 已经是相对坐标（相机在原点）
-            float3 camera2WaterDir = safeNormalize(waterWorldPos);
+            float3 camera2WaterDir = -GetWorldSpaceNormalizeViewDir(waterWorldPos);
+            // A sky pixel has no finite scene position. Its incident direction is
+            // still the camera ray through the water surface.
+            float3 waterCrossDir = directViewHitsSky
+                ? camera2WaterDir
+                : safeNormalize(sceneWorldPos - waterWorldPos);
             
             // 计算折射向量
-            _RefractionStrength = 1.0f;
-            float3 normalGain = float3(_RefractionStrength, 1.0, _RefractionStrength);
+            float refractionStrength = max(_RefractionStrength, 0.0);
+            float3 normalGain = float3(refractionStrength, 1.0, refractionStrength);
             float3 refractDir = refract(camera2WaterDir, safeNormalize(normalWS * normalGain), eta);
             
             // 舍弃整体上的折射，只捕捉法线产生的折射
             float3 refractedDir_Fix = refract(camera2WaterDir, float3(0, 1, 0), eta);
-            refractDir -= refractedDir_Fix;
+            refractDir -= refractedDir_Fix; // No Snell Refraction!
             refractDir += waterCrossDir;
 
             // 检查是否发生全反射
@@ -296,15 +295,19 @@ Shader "Hidden/HDRP/HanPiWater/HPWater"
 
             //NDC空间光线步进
             float3 rayStart = waterWorldPos;
-            float3 refractDirection = safeNormalize(refractDir);
+            float3 refractDirection = refractDir;
             float3 startNDC = ComputeNormalizedDeviceCoordinatesWithZ(rayStart, UNITY_MATRIX_VP);
             startNDC.z = LinearEyeDepth(startNDC.z, _ZBufferParams);
             float3 endNDC = ComputeNormalizedDeviceCoordinatesWithZ(waterWorldPos + refractDir * _MaxRefractionCrossDistance, UNITY_MATRIX_VP);
             endNDC.z = LinearEyeDepth(endNDC.z, _ZBufferParams);
             float3 ndcDir = endNDC - startNDC;
 
-            // 先做一次 fallback
-            refractedWorldPos = waterWorldPos + refractDir * length(sceneWorldPos - waterWorldPos);
+            // Keep the fallback finite for sky pixels. The ray march below can
+            // still replace it when the refracted ray crosses visible geometry.
+            float fallbackDistance = directViewHitsSky
+                ? _MaxRefractionCrossDistance
+                : min(length(sceneWorldPos - waterWorldPos), _MaxRefractionCrossDistance);
+            refractedWorldPos = waterWorldPos + refractDir * max(fallbackDistance, 0.001);
             float3 hitNDC = ComputeNormalizedDeviceCoordinatesWithZ(refractedWorldPos, UNITY_MATRIX_VP);
 
             //Dither IGN
@@ -314,7 +317,6 @@ Shader "Hidden/HDRP/HanPiWater/HPWater"
             // 预计算指数步进
             float rcpCount = rcp(float(REFRACT_SAMPLE_COUNT));
             float kDenom = rcp(expFactor - 1.0);
-            float kDD = log2(expFactor) * rcpCount * kDenom;
 
             // 预计算步进乘数：exp(ln(expFactor) / N) -> expFactor^(1/N)
             float expStep = pow(expFactor, rcpCount);
@@ -324,6 +326,7 @@ Shader "Hidden/HDRP/HanPiWater/HPWater"
 
 #if defined(_USE_RAY_MARCHING_ON)
             // Ray Marching
+            float previousDepthDelta = -1e20;
             [loop]            
             for (int i = 0; i < REFRACT_SAMPLE_COUNT; i++)
             {
@@ -333,7 +336,7 @@ Shader "Hidden/HDRP/HanPiWater/HPWater"
                 // 检查是否在有效范围内
                 if (any(samplePositionNDC.xy < 0) || any(samplePositionNDC.xy > 1)) break;
                 
-                float rayMarchRawDepth = samplePositionNDC.z;
+                float rayMarchLinearDepth = samplePositionNDC.z;
                 float2 rayScreenUV = samplePositionNDC.xy;
                 int2 rayScreenCoord = int2(rayScreenUV * _ScreenSize.xy);
                 int2 rayScreenCoordMip = rayScreenCoord >> 0;
@@ -342,14 +345,30 @@ Shader "Hidden/HDRP/HanPiWater/HPWater"
                 // 转换为线性深度（单位：米），用于精确的厚度比较
                 float raySceneLinearDepth = LinearEyeDepth(raySceneRawDepth, _ZBufferParams);
                 currentExp *= expStep;
-                
-                // 当 ray 深度接近或超过场景深度时，认为找到交点
-                if (rayMarchRawDepth < raySceneLinearDepth + REFRACT_THICKNESS_OFFSET && rayMarchRawDepth > raySceneLinearDepth - REFRACT_THICKNESS_OFFSET)
+
+                // Sky contributes color but has no depth surface to intersect.
+                if (IsSky(raySceneRawDepth))
+                {
+                    previousDepthDelta = -1e20;
+                    continue;
+                }
+
+                float depthDelta = rayMarchLinearDepth - raySceneLinearDepth;
+                bool withinThickness = abs(depthDelta) <= REFRACT_THICKNESS_OFFSET;
+                bool crossedSurface = previousDepthDelta < -REFRACT_THICKNESS_OFFSET
+                    && depthDelta > REFRACT_THICKNESS_OFFSET;
+
+                // Detect both a close sample and a front-to-back depth crossing.
+                // The crossing test is important when a refracted ray enters an
+                // object's silhouette from a sky pixel between two march steps.
+                if (withinThickness || crossedSurface)
                 {
                     //refractedWorldPos = samplePos;
                     hitNDC = samplePositionNDC;
                     break; // 找到交点，退出循环    
                 }
+
+                previousDepthDelta = depthDelta;
             }
 #endif
             // 边界因子 (防止边缘穿帮)
@@ -360,12 +379,12 @@ Shader "Hidden/HDRP/HanPiWater/HPWater"
             float safaRefractBound_Y = saturate(positionNDC.y * REFRACT_BOUND_SCALE_Y) * saturate((1.0 - positionNDC.y) * REFRACT_BOUND_SCALE_Y);
 
             // 先计算折射后的屏幕坐标（不含前向散射）
-            float2 refractWaterScreenCoord = hitNDC.xy;  
-            float hitDepth = hitNDC.z;   
+            float2 refractWaterScreenCoord = hitNDC.xy;
             refractWaterScreenCoord = saturate(refractWaterScreenCoord);   
         
-            // 更新前向散射后的深度和世界坐标
-            int2 refractedCoordSS = int2(refractWaterScreenCoord.xy * _ScreenSize.xy);
+            // Read the candidate position only for the above-water rejection.
+            int2 refractedCoordSS = clamp(int2(refractWaterScreenCoord.xy * _ScreenSize.xy),
+                0, int2(_ScreenSize.xy) - 1);
             float refractedRawDepth = LOAD_TEXTURE2D_X(_CameraDepthTexture, refractedCoordSS).r;
             
             // 使用 GetPositionInput 重建折射后的世界坐标
@@ -378,16 +397,23 @@ Shader "Hidden/HDRP/HanPiWater/HPWater"
             uvOffset *= saturate(pow(safaRefractBound_X * safaRefractBound_Y,0.5));
             
             // 判断折射后的世界坐标是否在水中，如果在水面上方则使用原始坐标
-            if (refractedBackWorldPos.y > waterWorldPos.y)
+            if (!IsSky(refractedRawDepth) && refractedBackWorldPos.y > waterWorldPos.y)
             {
                 uvOffset = 0;
             }
             
             // Limit
             uvOffset = clamp(uvOffset, -1, 1);
+
+            // Edge fading and above-water rejection can change the UV after the
+            // candidate depth was loaded. Sample depth again at the final UV so
+            // refractionData.xy and refractionData.z describe the same pixel.
+            float2 finalRefractedUV = saturate(positionNDC + uvOffset);
+            int2 finalRefractedCoordSS = clamp(int2(finalRefractedUV * _ScreenSize.xy),
+                0, int2(_ScreenSize.xy) - 1);
+            float finalRefractedRawDepth = LOAD_TEXTURE2D_X(_CameraDepthTexture, finalRefractedCoordSS).r;
             
-            // 输出全分辨率 UV：XY=UV偏移，Z=0，W=是否为水面
-            return float4(uvOffset, sceneDepth, 1);
+            return float4(uvOffset, finalRefractedRawDepth, 1);
         }
 
         // ========================================================
