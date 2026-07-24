@@ -15,6 +15,7 @@ namespace UnityEngine.Rendering.HighDefinition
     {
         HPWaterGbufferData hpwatergbufferdata;
         CausticPackage causticToDeferredData;
+        HPWaterFluidDynamicsPackage fluidDynamicsData;
         
         // Needed only because of custom pass. See comment at ResolveMSAAColor.
         TextureHandle m_NonMSAAColorBuffer;
@@ -176,11 +177,16 @@ namespace UnityEngine.Rendering.HighDefinition
 
                     RenderShadows(m_RenderGraph, hdCamera, cullingResults, ref shadowResult);
 
+                    // Push common parameters before caustic generation. The second push below
+                    // publishes the actual caustic mode after all availability checks.
+                    PushHPWaterGlobalShaderVariable(m_RenderGraph, null);
+                    causticToDeferredData = RenderCaustics(m_RenderGraph, hdCamera, cullingResults, shadowResult, 0);
+                    PushHPWaterGlobalShaderVariable(m_RenderGraph, causticToDeferredData);
+                    // TODO: Update wave function of water
+                    fluidDynamicsData = RenderHPWaterFluidDynamics(m_RenderGraph, hdCamera, cullingResults, 0);
+                    SetGlobalHPWaterFluidDynamics(m_RenderGraph, fluidDynamicsData);
+
                     StartXRSinglePass(m_RenderGraph, hdCamera);
-
-
-                    // RenderHPWaterFluidDynamics(m_RenderGraph, hdCamera, cullingResults, 0);
-
                     // Evaluate the clear coat mask texture based on the lit shader mode
                     var clearCoatMask = hdCamera.frameSettings.litShaderMode == LitShaderMode.Deferred ? prepassOutput.gbuffer.mrt[2] : m_RenderGraph.defaultResources.blackTextureXR;
                     lightingBuffers.ssrLightingBuffer = RenderSSR(m_RenderGraph, hdCamera, ref prepassOutput, clearCoatMask, rayCountTexture, m_SkyManager.GetSkyReflection(hdCamera), transparent: false);
@@ -1399,9 +1405,6 @@ namespace UnityEngine.Rendering.HighDefinition
 
             // Render the water gbuffer (and prepare for the transparent SSR pass)
             var waterGBuffer = RenderWaterGBuffer(m_RenderGraph, hdCamera, prepassOutput.depthBuffer, prepassOutput.normalBuffer, currentColorPyramid, prepassOutput.depthPyramidTexture, lightLists);
-            hpwatergbufferdata = RenderHPWaterGbuffer(m_RenderGraph, hdCamera, cullingResults, 0, prepassOutput.depthBuffer, prepassOutput.normalBuffer);
-
-            causticToDeferredData = RenderCaustics(m_RenderGraph, hdCamera, cullingResults, shadowResult, 0);
 
             // Render the transparent SSR lighting
             var ssrLightingBuffer = RenderSSR(renderGraph, hdCamera, ref prepassOutput, renderGraph.defaultResources.blackTextureXR, rayCountTexture, skyTexture, transparent: true);
@@ -1426,6 +1429,7 @@ namespace UnityEngine.Rendering.HighDefinition
                 var resolvedColorBuffer = ResolveMSAAColor(renderGraph, hdCamera, colorBuffer, m_NonMSAAColorBuffer);
                 GenerateColorPyramid(renderGraph, hdCamera, resolvedColorBuffer, currentColorPyramid, FullScreenDebugMode.FinalColorPyramid);
             }
+            hpwatergbufferdata = RenderHPWaterGbuffer(m_RenderGraph, hdCamera, cullingResults, 0, prepassOutput.depthBuffer, prepassOutput.normalBuffer);
 
             // Render the deferred water lighting
             colorBuffer = RenderHPWater(m_RenderGraph, hdCamera, colorBuffer, currentColorPyramid, ref prepassOutput, lightLists, shadowResult, cullingResults, lightingBuffers, volumetricLighting);
