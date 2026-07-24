@@ -18,6 +18,7 @@ MonoBehaviour:
     CausticComputeCS: {fileID: 7200000, guid: c0e33f610d6c74444b507a2a5ead2744, type: 3}
     WaterVolumeCS: {fileID: 7200000, guid: ce31264519119a648b38ce0a367e647d, type: 3}
     WaveEquationCS: {fileID: 7200000, guid: 29358f893780c51438abc4a89ce9f8c4, type: 3}
+    fluidHeightPS: {fileID: 4800000, guid: 45b945e064c848f68190b8995a5650f9, type: 3}
     debugDisplayLatlongPS: {fileID: 4800000, guid: c1d1d149a043a5349ba367da6c2051ba,
       type: 3}
     debugViewMaterialGBufferPS: {fileID: 4800000, guid: 439949ea1bfa91b4ba0d04269fcde33d,

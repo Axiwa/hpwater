@@ -4,6 +4,7 @@
 
 #include "Packages/com.unity.render-pipelines.high-definition/Runtime/RenderPipeline/ShaderPass/VertMesh.hlsl"
 #include "Packages/com.unity.render-pipelines.high-definition/Runtime/HanPiWater/Gbuffer/HPWaterGBufferEncode.hlsl"
+#include "Packages/com.unity.render-pipelines.high-definition/Runtime/HanPiWater/FluidDynamics/HPWaterFluidSample.hlsl"
 
 PackedVaryingsType Vert(AttributesMesh inputMesh)
 {
@@ -21,6 +22,7 @@ PackedVaryingsType Vert(AttributesMesh inputMesh)
     else
 #endif
     {
+        ApplyHPWaterFluidDisplacement(inputMesh);
         varyingsType.vmesh = VertMesh(inputMesh);
     }
 

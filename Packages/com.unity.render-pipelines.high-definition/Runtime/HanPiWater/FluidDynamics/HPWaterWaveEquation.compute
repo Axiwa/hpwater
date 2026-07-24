@@ -27,6 +27,24 @@ bool IsObstacle(float waterHeight,float sceneHeight)
     return waterHeight < sceneHeight; 
 }
 
+uint2 WaveCoordToHeightCoord(int2 waveCoord, uint waveWidth, uint2 heightSize)
+{
+    float2 uv = (float2(waveCoord) + 0.5) * rcp((float)waveWidth);
+    return min((uint2)(uv * heightSize), heightSize - 1);
+}
+
+bool IsObstacleAt(int2 waveCoord, uint waveWidth)
+{
+    uint waterWidth, waterHeight;
+    uint sceneWidth, sceneHeight;
+    _HPWaterHeight.GetDimensions(waterWidth, waterHeight);
+    _HPSceneHeight.GetDimensions(sceneWidth, sceneHeight);
+
+    float water = _HPWaterHeight[WaveCoordToHeightCoord(waveCoord, waveWidth, uint2(waterWidth, waterHeight))];
+    float scene = _HPSceneHeight[WaveCoordToHeightCoord(waveCoord, waveWidth, uint2(sceneWidth, sceneHeight))];
+    return IsObstacle(water, scene);
+}
+
 [numthreads(8, 8, 1)]
 void UpdateWaveEquation(uint3 id : SV_DispatchThreadID)
 {
@@ -38,9 +56,7 @@ void UpdateWaveEquation(uint3 id : SV_DispatchThreadID)
     
     int2 coord = int2(id.xy);
 
-    float waterHeight = _HPWaterHeight[coord].r;
-    float sceneHeight = _HPSceneHeight[coord].r;
-    if(IsObstacle(waterHeight,sceneHeight))
+    if (IsObstacleAt(coord, width))
     {
         _WaveHeightNext[coord] = 0;
         return;
@@ -79,16 +95,16 @@ void UpdateWaveEquation(uint3 id : SV_DispatchThreadID)
     // 只有坐标在范围内时，才去读纹理判断是不是真墙
     // 如果坐标越界，它保持为 true (墙)，这样水波就会在屏幕边缘自动反弹
     if (coord.x > 0) 
-        obs_left = IsObstacle(_HPWaterHeight[coord + int2(-1, 0)].r, _HPSceneHeight[coord + int2(-1, 0)].r);
+        obs_left = IsObstacleAt(coord + int2(-1, 0), width);
     
     if (coord.x < (int)width - 1) 
-        obs_right = IsObstacle(_HPWaterHeight[coord + int2(1, 0)].r, _HPSceneHeight[coord + int2(1, 0)].r);
+        obs_right = IsObstacleAt(coord + int2(1, 0), width);
         
     if (coord.y > 0) 
-        obs_down = IsObstacle(_HPWaterHeight[coord + int2(0, -1)].r, _HPSceneHeight[coord + int2(0, -1)].r);
+        obs_down = IsObstacleAt(coord + int2(0, -1), width);
         
     if (coord.y < (int)width - 1) 
-        obs_up = IsObstacle(_HPWaterHeight[coord + int2(0, 1)].r, _HPSceneHeight[coord + int2(0, 1)].r);
+        obs_up = IsObstacleAt(coord + int2(0, 1), width);
 
     //=========================诺伊曼边界 (反射)===========================
     // 如果是墙（或者是屏幕边缘），把邻居设为自己 -> 导数为0 -> 反射
@@ -102,7 +118,6 @@ void UpdateWaveEquation(uint3 id : SV_DispatchThreadID)
     // 使用中心差分法：
     // u(t+Δt) = 2u(t) - u(t-Δt) + c²Δt²∇²u
     // 注意：在像素空间中，dx = 1（像素），所以Laplacian不需要额外除以dx²
-    _DeltaTime = 1/60.0;
     float laplacian = (u_left + u_right + u_up + u_down - 4.0 * u_current);
     float c2 = _WaveSpeed * _WaveSpeed;
     float dt2 = _DeltaTime * _DeltaTime;
