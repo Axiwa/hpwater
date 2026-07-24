@@ -950,6 +950,10 @@ namespace UnityEngine.Rendering.HighDefinition
             ReleaseVolumetricClouds();
             CleanupSubsurfaceScattering();
             ReleaseWaterSystem();
+            CleanupHPWaterRefraction();
+            CleanupHPWaterCaustic();
+            CleanupHPWaterFluidDynamics();
+            CleanupHPWaterVolume();
 
             // For debugging
             MousePositionDebug.instance.Cleanup();

@@ -19,7 +19,7 @@
 #include "Packages/com.unity.render-pipelines.high-definition/Runtime/HanPiWater/Caustic/HPWaterCaustic.hlsl"
 #include "Packages/com.unity.render-pipelines.high-definition/Runtime/HanPiWater/Caustic/HPWaterCausticPass.cs.hlsl"
 
-//#define DEBUGMODE_ON
+// #define DEBUGMODE_ON
 #define DIGITS_OFFSET_R 1e4
 #define DIGITS_OFFSET_L 1e-4
 
@@ -49,6 +49,7 @@ Texture2D<float2> _WaterGbuffer1Atlas;//吸收/散射纹理,低分辨率
 Texture2D<float> _WaterCascadeDepth0Atlas;//全分辨率深度纹理
 Texture2D<float> _WaterCascadeDepth1Atlas;//低分辨率深度纹理,用于Nearest-Depth Upsampling（最近深度上采样）
 Texture2D<float> _ShadowDepthCascadeAtlas;//阴影深度纹理,全分辨率
+RWTexture2D<float4> debugTexture;
 
 float3 GetNormalizedDeviceCoordinates(float3 worldPos, float4x4 vpMatrix)
 {
@@ -113,10 +114,10 @@ void CausticCaculateKernel (uint3 id : SV_DispatchThreadID)
     float4 normalData = _WaterGbuffer0Atlas.Load(int3(normalCoord, 0));
     
     //解码法线数据
-    _RefractionStrength = 1;
     NormalData normalDataDecode;
     DecodeFromNormalBuffer(normalData, normalDataDecode);
-    float3 worldNormal = normalDataDecode.normalWS * float3(_RefractionStrength,1,_RefractionStrength);
+    float refractionStrength = max(_RefractionStrength, 0.0);
+    float3 worldNormal = normalDataDecode.normalWS * float3(refractionStrength, 1, refractionStrength);
     worldNormal = safeNormalize(worldNormal);
 
     // ========================================
@@ -196,6 +197,10 @@ void CausticCaculateKernel (uint3 id : SV_DispatchThreadID)
     refractedDir_B -= refractedDir_Fix;
     refractedDir_B += LightDir;
 
+    refractedDir_R = safeNormalize(refractedDir_R);
+    refractedDir_G = safeNormalize(refractedDir_G);
+    refractedDir_B = safeNormalize(refractedDir_B);
+
     float3 refractedWorldPos_R = 0;   
     float3 refractedWorldPos_B = 0;
     
@@ -208,6 +213,7 @@ void CausticCaculateKernel (uint3 id : SV_DispatchThreadID)
     float3 refractedDir_Fix = refract(LightDir, float3(0,1,0), eta);
     refractedDir_G -= refractedDir_Fix;
     refractedDir_G += LightDir;
+    refractedDir_G = safeNormalize(refractedDir_G);
     // 检查是否发生全反射
     [branch]
     if (length(refractedDir_G) == 0) return;
@@ -216,7 +222,7 @@ void CausticCaculateKernel (uint3 id : SV_DispatchThreadID)
     // ========================================
     // 光线步进
     // ========================================
-#define COARSE_STEPS 16           // 粗步进次数
+#define COARSE_STEPS 32           // 粗步进次数
 
     float3 rayStart = waterSurfacePos;
 
@@ -225,7 +231,7 @@ void CausticCaculateKernel (uint3 id : SV_DispatchThreadID)
     float R2Dither = R2_dither(GET_SCREEN_UV(id, rtSizeX) * float2(rtSizeX, rtSizeX), 0);    
     float coarseStep = causticCrossDistance / COARSE_STEPS;
     float hitInterval_hi = 0;    
-    float4x4 activeVP = _WaterCascadeAtlasVP[cascadeIndex];
+    float4x4 activeVP = _WaterCascadeAtlasVPNoFlip[cascadeIndex];
 
     // 在循环前计算NDC空间的总距离
     float3 startNDC = GetNormalizedDeviceCoordinates(rayStart, activeVP);
@@ -253,7 +259,7 @@ void CausticCaculateKernel (uint3 id : SV_DispatchThreadID)
 
     // 计算起始点的 exp 值：expFactor^(Dither/N)
     float currentExp = pow(expFactor, R2Dither * rcpCount);
-    
+    float3 hitNDCDEBUG = 0;
     [loop]
     for (int i = 0; i <= COARSE_STEPS; i++)
     {
@@ -280,6 +286,7 @@ void CausticCaculateKernel (uint3 id : SV_DispatchThreadID)
             break;
         }
     }
+    debugTexture[id.xy] = float4(hitNDCDEBUG, 1);
 
 #if !defined(DEBUGMODE_ON)
     // 如果没有击中，直接返回，避免写入无效数据
@@ -290,8 +297,8 @@ void CausticCaculateKernel (uint3 id : SV_DispatchThreadID)
 #if defined(_USE_RGB_CAUSTIC_ON)
     refractedWorldPos_R = rayStart + refractedDir_R * hitInterval_hi;
     refractedWorldPos_B = rayStart + refractedDir_B * hitInterval_hi;
-    float2 ndc_R_local = GetNormalizedDeviceCoordinates(refractedWorldPos_R, _WaterCascadeAtlasVP[cascadeIndex]).xy;
-    float2 ndc_B_local = GetNormalizedDeviceCoordinates(refractedWorldPos_B, _WaterCascadeAtlasVP[cascadeIndex]).xy;
+    float2 ndc_R_local = GetNormalizedDeviceCoordinates(refractedWorldPos_R, _WaterCascadeAtlasVPNoFlip[cascadeIndex]).xy;
+    float2 ndc_B_local = GetNormalizedDeviceCoordinates(refractedWorldPos_B, _WaterCascadeAtlasVPNoFlip[cascadeIndex]).xy;
     float2 ndc_R, ndc_B;
 #endif
     
@@ -328,9 +335,9 @@ void CausticCaculateKernel (uint3 id : SV_DispatchThreadID)
             all(pixelCoordB < uint2(rtSizeX, rtSizeX)) &&
             intensityValue > 0)
         {
-            InterlockedAdd(_causticIrradianceRT_R[pixelCoordR], 1);
-            InterlockedAdd(_causticIrradianceRT_G[pixelCoordG], 1);
-            InterlockedAdd(_causticIrradianceRT_B[pixelCoordB], 1);
+            InterlockedAdd(_causticIrradianceRT_R[pixelCoordR], intensityValue);
+            InterlockedAdd(_causticIrradianceRT_G[pixelCoordG], intensityValue);
+            InterlockedAdd(_causticIrradianceRT_B[pixelCoordB], intensityValue);
         }
     #else
         float2 FinalUV_G = ndc_G * float2(rtSizeX, rtSizeX);

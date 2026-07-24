@@ -245,7 +245,7 @@ Material:
     - _ZTestTransparent: 4
     - _ZWrite: 1
     m_Colors:
-    - _AbsorptionColor: {r: 0.23584908, g: 0.03893734, b: 0.03893734, a: 0}
+    - _AbsorptionColor: {r: 0.46226418, g: 0.07631719, b: 0.07631719, a: 0}
     - _BaseColor: {r: 0, g: 0, b: 0, a: 1}
     - _BaseColorMap_MipInfo: {r: 0, g: 0, b: 0, a: 0}
     - _Color: {r: 1, g: 1, b: 1, a: 1}
@@ -257,7 +257,7 @@ Material:
     - _FoamColor: {r: 4, g: 4, b: 4, a: 1}
     - _InvPrimScale: {r: 1, g: 1, b: 0, a: 0}
     - _IridescenceThicknessRemap: {r: 0, g: 1, b: 0, a: 0}
-    - _ScatterColor: {r: 0.46306515, g: 0.7544848, b: 0.8113208, a: 1}
+    - _ScatterColor: {r: 0.6415094, g: 0.46297613, b: 0.46297613, a: 1}
     - _SpecularColor: {r: 1, g: 1, b: 1, a: 1}
     - _ThicknessRemap: {r: 0, g: 1, b: 0, a: 0}
     - _TransmittanceColor: {r: 1, g: 1, b: 1, a: 1}

@@ -133,7 +133,7 @@ float3 ComputeCausticValue(float3 samplePos,inout SHADOW_TYPE shadowValue,uint f
 {
     if (_Is_Use_RGB_Caustic < 0)
         return 1;
-    float3 causticValue = 0;
+    float3 causticValue = 1;
     if (featureFlags & LIGHTFEATUREFLAGS_DIRECTIONAL)
     {
         if (_DirectionalShadowIndex >= 0)

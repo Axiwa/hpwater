@@ -89,7 +89,10 @@ namespace UnityEngine.Rendering.HighDefinition
                 causticToDeferredData = IsCausticDataValid(causticToDeferredData, renderGraph);
                 // 获取焦散模式
                 int causticMode = causticToDeferredData.causticEnabled ? (causticToDeferredData.useRGBCaustic ? 1 : 0) : -1;
-                passData.globalParams._Is_Use_RGB_Caustic = 1; //causticMode;
+                passData.globalParams._Is_Use_RGB_Caustic = causticMode;
+
+                // This pass only has a global side effect and has no graph output.
+                builder.AllowPassCulling(false);
 
                 builder.SetRenderFunc((HPWaterGlobalShaderVariablePassData data, RenderGraphContext ctx) =>
                 {

@@ -6,11 +6,11 @@ namespace UnityEngine.Rendering.HighDefinition
 {
     public partial class HDRenderPipeline
     {
-        int m_HanPiCausticKernel = 0;
-        int m_HanPiWaterWaveEquationUpdateKernel = 0;
-        int m_HanPiWaterVolumeKernel = 0;
-        int m_HanPiWaterVolumeSpatialFilterKernel = 1;
-        int m_HanPiWaterVolumeCompositeKernel = 2;
+        int m_HanPiCausticKernel = -1;
+        int m_HanPiWaterWaveEquationUpdateKernel = -1;
+        int m_HanPiWaterVolumeKernel = -1;
+        int m_HanPiWaterVolumeSpatialFilterKernel = -1;
+        int m_HanPiWaterVolumeCompositeKernel = -1;
         
         static class CausticShaderIDs
         {
@@ -24,6 +24,7 @@ namespace UnityEngine.Rendering.HighDefinition
 
 
             // Caustic Textures - RW（写入）
+            public static readonly int _causticDebugTexture = Shader.PropertyToID("debugTexture");
             public static readonly int _causticIrradianceRT_R = Shader.PropertyToID("_causticIrradianceRT_R");
             public static readonly int _causticIrradianceRT_G = Shader.PropertyToID("_causticIrradianceRT_G");
             public static readonly int _causticIrradianceRT_B = Shader.PropertyToID("_causticIrradianceRT_B");
@@ -46,6 +47,8 @@ namespace UnityEngine.Rendering.HighDefinition
             
             // 全局变量：控制渲染模式
             public static readonly int _RenderGbuffer1Only = Shader.PropertyToID("_RenderGbuffer1Only");
+            public static readonly int _HPWaterCausticViewProjMatrix = Shader.PropertyToID("_HPWaterCausticViewProjMatrix");
+            public static readonly int _HPWaterCausticViewDirectionWS = Shader.PropertyToID("_HPWaterCausticViewDirectionWS");
             
             // À-trous降噪参数
             public static readonly int _AtrousLuminanceWeight = Shader.PropertyToID("_AtrousLuminanceWeight");
@@ -78,6 +81,7 @@ namespace UnityEngine.Rendering.HighDefinition
             public Matrix4x4[] cascadeProjectionMatrices;// 级联Projection矩阵
             public Matrix4x4[] cascadeVPMatrices;// 级联VP矩阵
             public Matrix4x4[] cascadeVPMatricesInverse;// 级联VP矩阵逆矩阵
+            public Matrix4x4[] cascadeVPMatricesNoFlip;// 级联VP矩阵
             public ShadowSplitData[] cascadeSplitData;// 级联阴影分割数据
             public Vector4[] cascadeOffsetsAndSizes;// 级联图集位置和大小
             public Vector4[] cascadeDepthRanges; // 每个级联的深度范围                        
@@ -91,6 +95,7 @@ namespace UnityEngine.Rendering.HighDefinition
             public TextureHandle causticIrradianceR;//焦散辐射强度R，只有RGB模式需要
             public TextureHandle causticIrradianceG;//焦散辐射强度G，只有RGB模式需要
             public TextureHandle causticIrradianceB;//焦散辐射强度B，只有RGB模式需要
+            public TextureHandle debugTexture;//焦散辐射强度R，只有RGB模式需要
             public TextureHandle causticColor;//焦散颜色，只有单通道模式需要
             public TextureHandle causticColorTemp;//焦散颜色临时，只有单通道模式需要
             public TextureHandle shadowDepthCascadeAtlas;//场景阴影级联深度纹理
@@ -118,8 +123,8 @@ namespace UnityEngine.Rendering.HighDefinition
             // 渲染参数
             public float forwardRandomOffset = 1.0f;//向前随机偏移
             public float causticIntensity = 1.0f;//焦散强度
-            public float crossDistance = 1.0f;//穿越距离
-            public float dispersionStrength = 1.0f;//色散强度
+            public float crossDistance = 10.0f;//穿越距离
+            public float dispersionStrength = 0.5f;//色散强度
             
             // À-trous降噪参数
             public float atrousLuminanceWeight = 0.5f;//À-trous降噪权重
@@ -159,6 +164,8 @@ namespace UnityEngine.Rendering.HighDefinition
             [HLSLArray(4, typeof(Matrix4x4))]
             public fixed float _WaterCascadeDepth0AtlasVP[4 * 4 * 4];
             // 每个级联的深度范围 (x=near, y=far, z=range, w=unused)
+            [HLSLArray(4, typeof(Matrix4x4))]
+            public fixed float _WaterCascadeDepth0AtlasVPNoFlip[4 * 4 * 4];
             [HLSLArray(4, typeof(Vector4))]
             public fixed float _WaterCascadeDepthRanges[4 * 4];
         }
@@ -188,14 +195,15 @@ namespace UnityEngine.Rendering.HighDefinition
         {
             // 验证所有纹理（RGB 和单通道模式都需要 R/G/B 全部有效，因为单通道会复用 G）
             if (causticToDeferredData != null &&
-                causticToDeferredData.causticColorR.IsValid() && 
-                causticToDeferredData.causticColorG.IsValid() && 
-                causticToDeferredData.causticColorB.IsValid() &&
                 causticToDeferredData.cascadeWaterDepth.IsValid() &&
                 causticToDeferredData.causticGbuffer0.IsValid() &&
                 causticToDeferredData.causticGbuffer1.IsValid() &&
                 causticToDeferredData.causticCascadeDepth1.IsValid() &&
-                causticToDeferredData.causticColorFloat.IsValid())
+                (causticToDeferredData.useRGBCaustic
+                    ? causticToDeferredData.causticColorR.IsValid() &&
+                      causticToDeferredData.causticColorG.IsValid() &&
+                      causticToDeferredData.causticColorB.IsValid()
+                    : causticToDeferredData.causticColorFloat.IsValid()))
             {
                 return causticToDeferredData; 
             }
@@ -225,7 +233,14 @@ namespace UnityEngine.Rendering.HighDefinition
                 CoreUtils.Destroy(s_BlurMaterial);
                 s_BlurMaterial = null;
             }
-            // s_BlurShader 不需要清理，因为它来自 defaultResources
+
+            if (s_CachedCascadeCameraObjects != null)
+            {
+                for (int i = 0; i < s_CachedCascadeCameraObjects.Length; ++i)
+                    CoreUtils.Destroy(s_CachedCascadeCameraObjects[i]);
+            }
+            s_CachedCascadeCameras = null;
+            s_CachedCascadeCameraObjects = null;
         }
 
         /// <summary>
@@ -281,6 +296,9 @@ namespace UnityEngine.Rendering.HighDefinition
 
             ComputeShader m_HanPiCausticCompute = defaultResources.shaders.CausticComputeCS;
 
+            if (m_HanPiCausticCompute != null && m_HanPiCausticKernel < 0)
+                m_HanPiCausticKernel = m_HanPiCausticCompute.FindKernel("CausticCaculateKernel");
+
             // 空值检查（如果条件不满足，直接返回 emptyData）
             if (OnGetCausticParameters == null || hdCamera == null || renderGraph == null ||
             m_HanPiCausticCompute == null || m_HanPiCausticKernel < 0)
@@ -326,6 +344,29 @@ namespace UnityEngine.Rendering.HighDefinition
                 return emptyData;
             }
 
+            // Resolve the light while building the graph. The final caustic mode can
+            // then be pushed deterministically before deferred water lighting runs.
+            Light directionalLight = RenderSettings.sun;
+            int directionalLightIndex = directionalLight != null
+                ? FindLightIndex(cullingResults, directionalLight)
+                : -1;
+            if (directionalLightIndex < 0)
+            {
+                var visibleLights = cullingResults.visibleLights;
+                for (int i = 0; i < visibleLights.Length; ++i)
+                {
+                    if (visibleLights[i].lightType == LightType.Directional)
+                    {
+                        directionalLight = visibleLights[i].light;
+                        directionalLightIndex = i;
+                        break;
+                    }
+                }
+            }
+
+            if (directionalLight == null || directionalLightIndex < 0)
+                return emptyData;
+
 #if UNITY_EDITOR || DEVELOPMENT_BUILD
             if (parameters.showDebugInfo)
             {
@@ -341,10 +382,13 @@ namespace UnityEngine.Rendering.HighDefinition
             passData.WaterlayerMask = WaterlayerMask;
             passData.causticComputeParams = new CausticComputeParams();            
             passData.cullingResults = cullingResults;
+            passData.directionalLight = directionalLight;
+            passData.directionalLightIndex = directionalLightIndex;
 
             // 初始化数组            
             passData.cascadeViewMatrices = new Matrix4x4[maxCascades];
             passData.cascadeVPMatrices = new Matrix4x4[maxCascades];
+            passData.cascadeVPMatricesNoFlip = new Matrix4x4[maxCascades];
             passData.cascadeVPMatricesInverse = new Matrix4x4[maxCascades];
             passData.cascadeProjectionMatrices = new Matrix4x4[maxCascades];
             passData.cascadeSplitData = new ShadowSplitData[maxCascades];
@@ -407,7 +451,7 @@ namespace UnityEngine.Rendering.HighDefinition
             {
                 passData.causticIrradianceR = builder.WriteTexture(renderGraph.CreateTexture(new TextureDesc(parameters.causticRenderSize, parameters.causticRenderSize)
                 {
-                    colorFormat = GraphicsFormat.R32_SInt,
+                    colorFormat = GraphicsFormat.R32_UInt,
                     enableRandomWrite = true,
                     clearColor = Color.clear,
                     clearBuffer = true,
@@ -416,7 +460,7 @@ namespace UnityEngine.Rendering.HighDefinition
 
                 passData.causticIrradianceB = builder.WriteTexture(renderGraph.CreateTexture(new TextureDesc(parameters.causticRenderSize, parameters.causticRenderSize)
                 {
-                    colorFormat = GraphicsFormat.R32_SInt,
+                    colorFormat = GraphicsFormat.R32_UInt,
                     enableRandomWrite = true,
                     clearColor = Color.clear,
                     clearBuffer = true,
@@ -425,7 +469,7 @@ namespace UnityEngine.Rendering.HighDefinition
 
                 passData.causticIrradianceG = builder.WriteTexture(renderGraph.CreateTexture(new TextureDesc(parameters.causticRenderSize, parameters.causticRenderSize)
                 {
-                    colorFormat = GraphicsFormat.R32_SInt,
+                    colorFormat = GraphicsFormat.R32_UInt,
                     enableRandomWrite = true,  
                     clearColor = Color.clear,
                     clearBuffer = true,
@@ -437,13 +481,21 @@ namespace UnityEngine.Rendering.HighDefinition
                 //如果单通道模式，则使用临时纹理，最后传递的是16bit的降噪纹理
                 passData.causticIrradianceG = builder.CreateTransientTexture(new TextureDesc(parameters.causticRenderSize, parameters.causticRenderSize)
                 {
-                    colorFormat = GraphicsFormat.R32_SInt,
+                    colorFormat = GraphicsFormat.R32_UInt,
                     enableRandomWrite = true,  
                     clearColor = Color.clear,
                     clearBuffer = true,
                     name = "CausticIrradianceG"
                 });
             }
+            passData.debugTexture = builder.CreateTransientTexture(new TextureDesc(parameters.causticRenderSize, parameters.causticRenderSize)
+            {
+                colorFormat = GraphicsFormat.R32G32B32A32_SFloat,
+                enableRandomWrite = true,  
+                clearColor = Color.clear,
+                clearBuffer = true,
+                name = "DebugTexture"
+            });
             // 单通道下的最后传递纹理
             passData.causticColor = builder.WriteTexture(renderGraph.CreateTexture(new TextureDesc(parameters.causticRenderSize, parameters.causticRenderSize)
             {
@@ -544,30 +596,7 @@ namespace UnityEngine.Rendering.HighDefinition
                 cmd.SetRenderTarget(data.causticIrradianceG);
                 cmd.ClearRenderTarget(false, true, Color.clear);
 
-                // 获取主光源
-                data.directionalLight = RenderSettings.sun;
-                if (data.directionalLight == null)
-                {
-#if UNITY_EDITOR || DEVELOPMENT_BUILD
-                    Debug.LogWarning("[RenderCaustics] RenderSettings.sun 为 null");
-#endif
-                    return;
-                }
-
-                // 查找光源索引
-                data.directionalLightIndex = FindLightIndex(data.cullingResults, data.directionalLight);
-                if (data.directionalLightIndex < 0)
-                {
-#if UNITY_EDITOR || DEVELOPMENT_BUILD
-                    if (param.showDebugInfo)
-                        Debug.LogWarning($"[RenderCaustics] 光源 {data.directionalLight.name} 不在CullingResults中");
-#endif
-                    return;
-                }                                
-
-                //使用原生API计算所有级联
-                CalculateAllCascadesNative(data);
-                
+                CalculateAllCascadesNative(passData);
                 // ========================================================================
                 // 渲染水面深度和法线（两次渲染通道）- 使用虚拟相机 + RendererList
                 // ========================================================================
@@ -595,8 +624,8 @@ namespace UnityEngine.Rendering.HighDefinition
                 else
                     compute.DisableKeyword("_USE_RGB_CAUSTIC_ON");
                     
-                for (int i = 0; i < data.cascadeVPMatrices.Length; i++)
-                    data.cascadeVPMatricesInverse[i] = data.cascadeVPMatrices[i].inverse;
+                for (int i = 0; i < data.cascadeVPMatricesNoFlip.Length; i++)
+                    data.cascadeVPMatricesInverse[i] = data.cascadeVPMatricesNoFlip[i].inverse;
 
                 // 设置 Cbuffer 数据（包含焦散和模糊所有参数）
                 PushCausticCbuffer(data, param, cmd);
@@ -615,6 +644,7 @@ namespace UnityEngine.Rendering.HighDefinition
                     cmd.SetComputeTextureParam(compute, kernel, CausticShaderIDs._causticIrradianceRT_B, data.causticIrradianceB);
                 }
                 cmd.SetComputeTextureParam(compute, kernel, CausticShaderIDs._causticIrradianceRT_G, data.causticIrradianceG);
+                cmd.SetComputeTextureParam(compute, kernel, CausticShaderIDs._causticDebugTexture, data.debugTexture);
 
                 // 执行焦散计算
                 compute.GetKernelThreadGroupSizes(m_HanPiCausticKernel, out uint x, out uint y, out _);
@@ -628,14 +658,18 @@ namespace UnityEngine.Rendering.HighDefinition
                 // ========================================
                 
                 // RGB模式：完全跳过降噪
-                if (param.useRGBCaustic || !param.useAtrousDenoise) 
+                if (param.useRGBCaustic)
+                {
+                    return;
+                }
+
+                if (!param.useAtrousDenoise)
                 {
                     cmd.BeginSample("HanPi Water PackToFloat");
                     cmd.SetGlobalTexture(CausticShaderIDs._causticIrradianceRT_G_Read, data.causticIrradianceG);                    
                     cmd.SetRenderTarget(data.causticColor);
                     cmd.DrawProcedural(Matrix4x4.identity, s_BlurMaterial, 1, MeshTopology.Triangles, 3, 1);
                     cmd.EndSample("HanPi Water PackToFloat");
-                    // RGB焦散不做任何模糊处理，保持原始数据
                     return;
                 }                
 
@@ -757,22 +791,37 @@ namespace UnityEngine.Rendering.HighDefinition
                 // 目标：VP_new * P_rel = VP * P_abs，其中 P_rel = P_abs - CameraPos
                 // 推导：VP * P_abs = VP * (P_rel + C) = VP * P_rel + VP * C
                 // 因此：VP_new 的平移部分需要加上 VP * C 的贡献
+                // The atlas is a render texture. Convert the CPU projection to the
+                // API-specific render-target clip space before sending it to HLSL.
+                Matrix4x4 deviceProjectionYFlip = GL.GetGPUProjectionMatrix(data.cascadeProjectionMatrices[i], true);
                 Matrix4x4 deviceProjection = GL.GetGPUProjectionMatrix(data.cascadeProjectionMatrices[i], false);
+                Matrix4x4 VPFlip = deviceProjectionYFlip * data.cascadeViewMatrices[i];
                 Matrix4x4 VP = deviceProjection * data.cascadeViewMatrices[i];
                 
                 Vector3 C = data.hdCamera.camera.transform.position;
                 
                 // VP * [C.x, C.y, C.z, 0] 的结果（w=0，只计算旋转缩放部分）
-                float offsetX = VP.m00 * C.x + VP.m01 * C.y + VP.m02 * C.z;
-                float offsetY = VP.m10 * C.x + VP.m11 * C.y + VP.m12 * C.z;
-                float offsetZ = VP.m20 * C.x + VP.m21 * C.y + VP.m22 * C.z;
+                float offsetX = VPFlip.m00 * C.x + VPFlip.m01 * C.y + VPFlip.m02 * C.z;
+                float offsetY = VPFlip.m10 * C.x + VPFlip.m11 * C.y + VPFlip.m12 * C.z;
+                float offsetZ = VPFlip.m20 * C.x + VPFlip.m21 * C.y + VPFlip.m22 * C.z;
                 
                 // 修改平移部分
-                VP.m03 += offsetX;
-                VP.m13 += offsetY;
-                VP.m23 += offsetZ;
+                VPFlip.m03 += offsetX;
+                VPFlip.m13 += offsetY;
+                VPFlip.m23 += offsetZ;
+
+                // VP * [C.x, C.y, C.z, 0] 的结果（w=0，只计算旋转缩放部分）
+                float offsetX1 = VP.m00 * C.x + VP.m01 * C.y + VP.m02 * C.z;
+                float offsetY1 = VP.m10 * C.x + VP.m11 * C.y + VP.m12 * C.z;
+                float offsetZ1 = VP.m20 * C.x + VP.m21 * C.y + VP.m22 * C.z;
                 
-                data.cascadeVPMatrices[i] = VP;
+                // 修改平移部分
+                VP.m03 += offsetX1;
+                VP.m13 += offsetY1;
+                VP.m23 += offsetZ1;
+                
+                data.cascadeVPMatrices[i] = VPFlip;
+                data.cascadeVPMatricesNoFlip[i] = VP;
             }
         }
         /// <summary>
@@ -798,6 +847,10 @@ namespace UnityEngine.Rendering.HighDefinition
 
             // 设置为 Gbuffer0 或 Gbuffer1 模式
             cmd.SetGlobalInt(CausticShaderIDs._RenderGbuffer1Only, GbufferIndex);
+            Vector3 causticViewDirectionWS = -data.directionalLight.transform.forward;
+            cmd.SetGlobalVector(
+                CausticShaderIDs._HPWaterCausticViewDirectionWS,
+                new Vector4(causticViewDirectionWS.x, causticViewDirectionWS.y, causticViewDirectionWS.z, 0.0f));
 
             // 设置渲染目标
             if (GbufferIndex == 0)
@@ -884,7 +937,9 @@ namespace UnityEngine.Rendering.HighDefinition
                 ));
 
                 // 设置 VP 矩阵
-                cmd.SetViewProjectionMatrices(data.cascadeViewMatrices[i], data.cascadeProjectionMatrices[i]);
+                // Keep rasterization and downstream atlas reconstruction in the
+                // same GPU, camera-relative coordinate system.
+                cmd.SetGlobalMatrix(CausticShaderIDs._HPWaterCausticViewProjMatrix, data.cascadeVPMatrices[i]);
                 cmd.SetGlobalDepthBias(parameters.depthBias, parameters.slopeBias);
 
                 // 绘制（自动批处理 + GPU Instancing）
@@ -901,11 +956,6 @@ namespace UnityEngine.Rendering.HighDefinition
                 cmd.SetGlobalDepthBias(0f, 0f);
             }
 
-            // 恢复主相机矩阵
-            cmd.SetViewProjectionMatrices(
-                data.hdCamera.camera.worldToCameraMatrix,
-                data.hdCamera.camera.projectionMatrix
-            );
         }
 
         /// <summary>
@@ -1026,6 +1076,18 @@ namespace UnityEngine.Rendering.HighDefinition
                         }
                     }
                     
+                    fixed (float* vpPtr = data.causticComputeParams._WaterCascadeDepth0AtlasVPNoFlip)
+                    {
+                        for (int i = 0; i < Mathf.Min(data.cascadeVPMatricesNoFlip.Length, 4); i++)
+                        {
+                            Matrix4x4 m = data.cascadeVPMatricesNoFlip[i];
+                            for (int j = 0; j < 16; j++)
+                            {
+                                vpPtr[i * 16 + j] = m[j];
+                            }
+                        }
+                    }
+
                     // 复制深度范围数组 (4 个 Vector4 = 16 个 float)
                     fixed (float* depthRangesPtr = data.causticComputeParams._WaterCascadeDepthRanges)
                     {

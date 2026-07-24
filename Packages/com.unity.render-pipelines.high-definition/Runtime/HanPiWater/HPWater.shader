@@ -67,7 +67,7 @@ Shader "Hidden/HDRP/HanPiWater/HPWater"
         // ========================================================
         // Pass 1: PackToFloat - 单通道模式
         // ========================================================        
-        TEXTURE2D (_causticIrradianceRT_G_Read);
+        Texture2D<uint> _causticIrradianceRT_G_Read;
 
         float FragSingleChannel(Varyings input) : SV_Target
         {
@@ -76,12 +76,12 @@ Shader "Hidden/HDRP/HanPiWater/HPWater"
             // 获取纹理尺寸并转换为像素坐标
             uint width, height;
             _causticIrradianceRT_G_Read.GetDimensions(width, height);
-            uint2 pixelCoord = uint2(input.texcoord * float2(width, height));
+            uint2 pixelCoord = min(uint2(input.positionCS.xy), uint2(width - 1, height - 1));
             
             // 从整数纹理读取并转换为浮点
-            float g = (float)_causticIrradianceRT_G_Read.Load(int3(pixelCoord, 0)) * DIGITS_OFFSET_L;
+            uint g = _causticIrradianceRT_G_Read.Load(int3(pixelCoord, 0));
             
-            return g;
+            return (float)g * DIGITS_OFFSET_L;
         }
 
         // ========================================================
@@ -454,7 +454,7 @@ Shader "Hidden/HDRP/HanPiWater/HPWater"
         Pass
         {
             Name "PackToFloat"
-            ZWrite Off ZTest Always Blend Off Cull Off
+            ZWrite Off ZTest Off Blend Off Cull Off
 
             HLSLPROGRAM
                 #pragma vertex Vert

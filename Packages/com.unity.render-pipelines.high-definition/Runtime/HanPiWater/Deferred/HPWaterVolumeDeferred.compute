@@ -54,7 +54,7 @@ TEXTURE2D_X(_DepthTexture);             // 主深度（包含水面，用于水�
 Texture2D<uint> _CausticCascadeAtlas_R; // RGB 模式：三张 R32_SInt
 Texture2D<uint> _CausticCascadeAtlas_G;
 Texture2D<uint> _CausticCascadeAtlas_B;
-Texture2D<float> _CausticCascadeAtlas_Float; // 单通道模式：一张 R32_SInt
+Texture2D<float> _CausticCascadeAtlas_Float; // 单通道模式：一张 R32_SFloat
 TEXTURE2D(_WaterNormalAtlas);//水下法线纹理
 
 // Refraction data: XY = final UV offset, Z = raw depth at that UV, W = water mask.

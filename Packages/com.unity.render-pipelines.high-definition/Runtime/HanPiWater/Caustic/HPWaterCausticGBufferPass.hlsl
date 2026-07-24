@@ -3,12 +3,28 @@
 // #endif
 #include "Packages/com.unity.render-pipelines.high-definition/Runtime/Material/NormalBuffer.hlsl"
 #include "Packages/com.unity.render-pipelines.high-definition/Runtime/HanPiWater/Caustic/HPWaterCaustic.hlsl"
+float4x4 _HPWaterCausticViewProjMatrix;
+float3 _HPWaterCausticViewDirectionWS;
+
+float4 HPWaterCausticTransformWorldToHClip(float3 positionRWS)
+{
+    return mul(_HPWaterCausticViewProjMatrix, float4(positionRWS, 1.0));
+}
+
+float3 HPWaterCausticGetWorldSpaceNormalizeViewDir(float3 positionRWS)
+{
+    return _HPWaterCausticViewDirectionWS;
+}
+
+#define TransformWorldToHClip HPWaterCausticTransformWorldToHClip
 #include "Packages/com.unity.render-pipelines.high-definition/Runtime/RenderPipeline/ShaderPass/VertMesh.hlsl"
+#undef TransformWorldToHClip
+#include "Packages/com.unity.render-pipelines.high-definition/Runtime/HanPiWater/FluidDynamics/HPWaterFluidSample.hlsl"
 #if defined(WRITE_DECAL_BUFFER) && !defined(_DISABLE_DECALS)
 #include "Packages/com.unity.render-pipelines.high-definition/Runtime/Material/Decal/DecalPrepassBuffer.hlsl"
 #endif
 
-PackedVaryingsType Vert(AttributesMesh inputMesh)
+PackedVaryingsType Vert(AttributesMesh input)
 {
     VaryingsType varyingsType;
 
@@ -24,7 +40,8 @@ PackedVaryingsType Vert(AttributesMesh inputMesh)
     else
 #endif
     {
-        varyingsType.vmesh = VertMesh(inputMesh);
+        ApplyHPWaterFluidDisplacement(input);
+        varyingsType.vmesh = VertMesh(input);
     }
 
     return PackVaryingsType(varyingsType);
@@ -39,7 +56,9 @@ PackedVaryingsToPS VertTesselation(VaryingsToDS input)
     return PackVaryingsToPS(output);
 }
 
+#define GetWorldSpaceNormalizeViewDir HPWaterCausticGetWorldSpaceNormalizeViewDir
 #include "Packages/com.unity.render-pipelines.high-definition/Runtime/RenderPipeline/ShaderPass/TessellationShare.hlsl"
+#undef GetWorldSpaceNormalizeViewDir
 
 #endif // TESSELLATION_ON
 
@@ -55,7 +74,7 @@ void Frag(PackedVaryingsToPS packedInput, out float4 gbuffer0 : SV_Target0)
     PositionInputs posInput = GetPositionInput(input.positionSS.xy, _ScreenSize.zw, input.positionSS.z, input.positionSS.w, input.positionRWS);
 
 #ifdef VARYINGS_NEED_POSITION_WS
-    float3 V = GetWorldSpaceNormalizeViewDir(input.positionRWS);
+    float3 V = _HPWaterCausticViewDirectionWS;
 #else
     // Unused
     float3 V = float3(1.0, 1.0, 1.0); // Avoid the division by 0

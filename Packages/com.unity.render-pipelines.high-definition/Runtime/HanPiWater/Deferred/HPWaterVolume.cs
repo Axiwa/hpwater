@@ -170,6 +170,19 @@ namespace UnityEngine.Rendering.HighDefinition
         /// </summary>
         public static event HPWaterVolumeInputDataProvider OnGetHPWaterVolumeInputData;
 
+        void CleanupHPWaterVolume()
+        {
+            RTHandles.Release(m_WaterVolumeHistoryColor);
+            RTHandles.Release(m_WaterVolumeHistoryTransmittance);
+            RTHandles.Release(m_WaterVolumeHistoryDepth);
+            m_WaterVolumeHistoryColor = null;
+            m_WaterVolumeHistoryTransmittance = null;
+            m_WaterVolumeHistoryDepth = null;
+            m_WaterVolumeHistoryWidth = 0;
+            m_WaterVolumeHistoryHeight = 0;
+            m_WaterVolumeFirstFrame = true;
+        }
+
         /// <summary>
         /// 确保水体积历史纹理已创建且尺寸正确
         /// </summary>
@@ -267,6 +280,16 @@ namespace UnityEngine.Rendering.HighDefinition
 
             ComputeShader m_HanPiWaterVolumeCS = defaultResources.shaders.WaterVolumeCS;
 
+            if (m_HanPiWaterVolumeCS != null)
+            {
+                if (m_HanPiWaterVolumeKernel < 0)
+                    m_HanPiWaterVolumeKernel = m_HanPiWaterVolumeCS.FindKernel("HanPiWaterVolume");
+                if (m_HanPiWaterVolumeSpatialFilterKernel < 0)
+                    m_HanPiWaterVolumeSpatialFilterKernel = m_HanPiWaterVolumeCS.FindKernel("HanPiWaterSpatialFilter");
+                if (m_HanPiWaterVolumeCompositeKernel < 0)
+                    m_HanPiWaterVolumeCompositeKernel = m_HanPiWaterVolumeCS.FindKernel("HanPiWaterComposite");
+            }
+
             // 如果没有提供有效的 compute shader 或 kernel，直接返回
             if (m_HanPiWaterVolumeCS == null || m_HanPiWaterVolumeKernel < 0 ||
                 m_HanPiWaterVolumeSpatialFilterKernel < 0 || m_HanPiWaterVolumeCompositeKernel < 0)
@@ -303,18 +326,32 @@ namespace UnityEngine.Rendering.HighDefinition
                 passData.depthPyramidBuffer = builder.ReadTexture(depthPyramidTexture);  // 场景深度（不含水面）
                 passData.normalBuffer = builder.ReadTexture(waterGbufferData.waterGBuffer0);
 
-                // 初始化焦散纹理 Handle 为默认贴图，防止绑定为空
-                // 焦散纹理使用黑色 uint 纹理（值为 0 表示无焦散强度）
-                passData.causticCascadeAtlas = renderGraph.defaultResources.blackUIntTextureXR;
-                passData.causticCascadeAtlasR = renderGraph.defaultResources.blackUIntTextureXR;
-                passData.causticCascadeAtlasG = renderGraph.defaultResources.blackUIntTextureXR;
-                passData.causticCascadeAtlasB = renderGraph.defaultResources.blackUIntTextureXR;
-                passData.causticNormalAtlas = renderGraph.defaultResources.whiteTexture;
+                // The caustic atlases are regular Texture2D resources. TextureXR's
+                // uint fallback can be a Texture2DArray, which is invalid for the
+                // Texture2D<uint> declarations in HPWaterVolumeDeferred.compute.
+                var blackCausticUInt = builder.CreateTransientTexture(new TextureDesc(1, 1)
+                {
+                    dimension = TextureDimension.Tex2D,
+                    colorFormat = GraphicsFormat.R32_UInt,
+                    clearBuffer = true,
+                    clearColor = Color.clear,
+                    name = "HPWater_BlackCausticUInt"
+                });
+
                 // 验证焦散纹理是否有效
                 causticToDeferredData = IsCausticDataValid(causticToDeferredData, renderGraph);
-                passData.causticCascadeAtlasR = builder.ReadTexture(causticToDeferredData.causticColorR);
-                passData.causticCascadeAtlasG = builder.ReadTexture(causticToDeferredData.causticColorG);
-                passData.causticCascadeAtlasB = builder.ReadTexture(causticToDeferredData.causticColorB);
+                if (causticToDeferredData.causticEnabled && causticToDeferredData.useRGBCaustic)
+                {
+                    passData.causticCascadeAtlasR = builder.ReadTexture(causticToDeferredData.causticColorR);
+                    passData.causticCascadeAtlasG = builder.ReadTexture(causticToDeferredData.causticColorG);
+                    passData.causticCascadeAtlasB = builder.ReadTexture(causticToDeferredData.causticColorB);
+                }
+                else
+                {
+                    passData.causticCascadeAtlasR = blackCausticUInt;
+                    passData.causticCascadeAtlasG = blackCausticUInt;
+                    passData.causticCascadeAtlasB = blackCausticUInt;
+                }
                 passData.causticCascadeAtlas = builder.ReadTexture(causticToDeferredData.causticColorFloat);
                 passData.causticNormalAtlas = builder.ReadTexture(causticToDeferredData.causticGbuffer0);
                 

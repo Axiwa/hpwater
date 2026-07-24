@@ -57,7 +57,7 @@ float3 GetHPWaterCaustic(float4 shadowAtlasSize, float3 coord, float worldTexelS
 
 
         // 色散偏移向量
-        refractionDeltaR = mul(_WaterCascadeAtlasVP[cascadeIndex], float4(refractionDeltaR, 0.0)).xyz;
+        refractionDeltaR = mul(_WaterCascadeAtlasVPNoFlip[cascadeIndex], float4(refractionDeltaR, 0.0)).xyz;
         
         // 色散偏移方向
         half2 dispersionDir = refractionDeltaR.xy * dispersionStrength;
@@ -145,7 +145,7 @@ float3 EvalHPWaterCaustic_CascadedDepth_Dither_SplitIndex(inout HDShadowContext 
         int cascadeIndex = evalNextCascade ? nextSplit : shadowSplitIndex;
         
         // 相机相对坐标 -> 裁剪空间
-        float4 posCS = mul(_WaterCascadeAtlasVP[cascadeIndex], float4(positionWS, 1.0));
+        float4 posCS = mul(_WaterCascadeAtlasVPNoFlip[cascadeIndex], float4(positionWS, 1.0));
         
         // NDC -> [0, 1] 纹理坐标
         float3 posTC = float3(posCS.xy * 0.5 + 0.5, posCS.z);
@@ -265,7 +265,7 @@ float2 positionSS, float3 positionWS, float3 normalWS, int index, float3 L, out 
         int cascadeIndex = shadowSplitIndex;
         
         // 相机相对坐标 -> 裁剪空间
-        float4 posCS = mul(_WaterCascadeAtlasVP[cascadeIndex], float4(positionWS, 1.0));
+        float4 posCS = mul(_WaterCascadeAtlasVPNoFlip[cascadeIndex], float4(positionWS, 1.0));
         
         // NDC -> [0, 1] 纹理坐标
         float3 posTC = float3(posCS.xy * 0.5 + 0.5, posCS.z);
@@ -328,7 +328,7 @@ float2 positionSS, float3 positionWS, float3 normalWS, int index, float3 L, out 
                 
                 // 计算下一个级联的坐标
                 int cascadeIndex2 = shadowSplitIndex;
-                float4 posCS2 = mul(_WaterCascadeAtlasVP[cascadeIndex2], float4(evaluationPosWS, 1.0));
+                float4 posCS2 = mul(_WaterCascadeAtlasVPNoFlip[cascadeIndex2], float4(evaluationPosWS, 1.0));
                 float3 posNDC = posCS2.xyz;
                 float3 posTC2 = float3(posCS2.xy * 0.5 + 0.5, posCS2.z);
                 

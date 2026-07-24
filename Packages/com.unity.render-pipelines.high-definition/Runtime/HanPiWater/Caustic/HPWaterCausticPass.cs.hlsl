@@ -20,6 +20,7 @@ CBUFFER_START(CausticComputeParams)
     float4 _WaterCascadeAtlasOffsetsAndSizes[4];
     float4x4 _WaterCascadeAtlasVPInverse[4];
     float4x4 _WaterCascadeAtlasVP[4];
+    float4x4 _WaterCascadeAtlasVPNoFlip[4];
     float4 _WaterCascadeDepthRanges[4];
 CBUFFER_END
 

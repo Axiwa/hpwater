@@ -91,7 +91,8 @@ namespace UnityEngine.Rendering.HighDefinition
             // 默认Fallback
             HPWaterRefractionOutput output = new HPWaterRefractionOutput
             {
-                refractionData = renderGraph.defaultResources.whiteTextureXR
+                // W is the water mask. A black fallback must therefore mean "no water".
+                refractionData = renderGraph.defaultResources.blackTextureXR
             };
             if (OnGetWaterRefractionParameters == null || hdCamera == null || renderGraph == null)
             {
@@ -129,6 +130,7 @@ namespace UnityEngine.Rendering.HighDefinition
                 passData.hdCamera = hdCamera;
                 passData.viewCount = hdCamera.viewCount;
                 passData.parameters = parameters;
+                passData.parameters.rayMarchingSampleCount = Mathf.Clamp(passData.parameters.rayMarchingSampleCount, 1, 64);
 
                 // 计算 tile 数量（全分辨率）
                 int screenWidth = hdCamera.actualWidth;
