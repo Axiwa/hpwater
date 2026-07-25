@@ -21,6 +21,10 @@ namespace UnityEngine.Rendering.HighDefinition
             public static readonly int _WaterCascadeDepth1Atlas = Shader.PropertyToID("_WaterCascadeDepth1Atlas");
             public static readonly int _WaterGbuffer1Atlas = Shader.PropertyToID("_WaterGbuffer1Atlas");
             public static readonly int _ShadowDepthCascadeAtlas = Shader.PropertyToID("_ShadowDepthCascadeAtlas");
+            // Read-only names used by deferred lighting. Keep these in sync with
+            // DeferredHPWaterCaustic.hlsl rather than the caustic generation UAV names.
+            public static readonly int _WaterCascadeAtlas = Shader.PropertyToID("_WaterCascadeAtlas");
+            public static readonly int _WaterNormalAtlas = Shader.PropertyToID("_WaterNormalAtlas");
 
 
             // Caustic Textures - RW（写入）
@@ -42,6 +46,7 @@ namespace UnityEngine.Rendering.HighDefinition
             public static readonly int _CausticCascadeAtlas_R = Shader.PropertyToID("_CausticCascadeAtlas_R");
             public static readonly int _CausticCascadeAtlas_G = Shader.PropertyToID("_CausticCascadeAtlas_G");
             public static readonly int _CausticCascadeAtlas_B = Shader.PropertyToID("_CausticCascadeAtlas_B");
+            public static readonly int _CausticCascadeAtlas_Float = Shader.PropertyToID("_CausticCascadeAtlas_Float");
             public static readonly int _Is_Use_RGB_Caustic = Shader.PropertyToID("_Is_Use_RGB_Caustic");
             public static readonly string HPWaterCausticGBufferPassName = "HPWaterCausticGBufferPass";
             

@@ -88,9 +88,10 @@ CBUFFER_END
 // the deferred shader will require to use multicompile.
 #include "Packages/com.unity.render-pipelines.high-definition/Runtime/Lighting/LightLoop/LightLoopDef.hlsl"
 #include "Packages/com.unity.render-pipelines.high-definition/Runtime/Material/Lit/Lit.hlsl"
+#define HP_WATER_DEFERRED_CAUSTICS
+#include "Packages/com.unity.render-pipelines.high-definition/Runtime/HanPiWater/Caustic/DeferredHPWaterCaustic.hlsl"
 #include "Packages/com.unity.render-pipelines.high-definition/Runtime/Lighting/LightLoop/LightLoop.hlsl"
 #include "Packages/com.unity.render-pipelines.high-definition/Runtime/RenderPipeline/HDStencilUsage.cs.hlsl"
-
 #pragma only_renderers d3d11 playstation xboxone xboxseries vulkan metal switch
 
 //-------------------------------------------------------------------------------------

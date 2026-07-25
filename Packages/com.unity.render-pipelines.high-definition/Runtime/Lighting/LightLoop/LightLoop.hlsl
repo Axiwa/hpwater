@@ -251,6 +251,38 @@ void LightLoop( float3 V, PositionInputs posInput, PreLightData preLightData, BS
         }
     }
 
+#if defined(HP_WATER_DEFERRED_CAUSTICS)
+    // The water caustic atlas is projected in the same cascade space as the main
+    // directional shadow. It remains available when the camera is below the water
+    // surface, unlike the water surface screen-space pass.
+    if (_Is_Use_RGB_Caustic >= 0 && (featureFlags & LIGHTFEATUREFLAGS_DIRECTIONAL) && _DirectionalShadowIndex >= 0)
+    {
+        DirectionalLightData causticLight = _DirectionalLightDatas[_DirectionalShadowIndex];
+        float3 causticL = -causticLight.forward;
+
+        if ((causticLight.lightDimmer > 0) && (causticLight.shadowDimmer > 0) &&
+            IsNonZeroBSDF(V, causticL, preLightData, bsdfData))
+        {
+            real causticCascadeAlpha;
+            int causticCascadeCount;
+            int causticSplitIndex = EvalShadow_GetSplitIndex(
+                context.shadowContext, causticLight.shadowIndex, posInput.positionWS,
+                causticCascadeAlpha, causticCascadeCount);
+
+            // Outside the generated cascades the water contribution must be neutral.
+            // Store the scene shadow itself so the division below evaluates to one.
+            context.causticValue = context.shadowValue;
+            if (causticSplitIndex >= 0)
+            {
+                context.causticValue = GetCausticDirectionalAttenuation(
+                    context.shadowContext, context.shadowValue,
+                    posInput.positionSS, posInput.positionWS, GetNormalForShadowBias(bsdfData),
+                    causticLight.shadowIndex, causticL);
+            }
+        }
+    }
+#endif
+
     // This struct is define in the material. the Lightloop must not access it
     // PostEvaluateBSDF call at the end will convert Lighting to diffuse and specular lighting
     AggregateLighting aggregateLighting;
@@ -635,6 +667,19 @@ void LightLoop( float3 V, PositionInputs posInput, PreLightData preLightData, BS
             if (IsMatchingLightLayer(_DirectionalLightDatas[i].lightLayers, builtinData.renderingLayers))
             {
                 DirectLighting lighting = EvaluateBSDF_Directional(context, V, posInput, preLightData, _DirectionalLightDatas[i], bsdfData, builtinData);
+#if defined(HP_WATER_DEFERRED_CAUSTICS)
+                if (_Is_Use_RGB_Caustic >= 0 && i == (uint)_DirectionalShadowIndex)
+                {
+                    // GetCausticDirectionalAttenuation already contains the main scene
+                    // shadow. Divide it out before applying the water-only modulation,
+                    // because ShadeSurface_Directional has applied that shadow already.
+                    float3 sceneShadow = context.shadowValue;
+                    float3 causticModulation = context.causticValue / max(sceneShadow, 1e-4);
+                    causticModulation *= step(1e-4, sceneShadow);
+                    lighting.diffuse *= causticModulation;
+                    lighting.specular *= causticModulation;
+                }
+#endif
                 AccumulateDirectLighting(lighting, aggregateLighting);
             }
         }

@@ -49,6 +49,20 @@ namespace UnityEngine.Rendering.HighDefinition
             cmd.SetGlobalTexture(HDShaderIDs._ScreenSpaceShadowsTexture, defaultResources.blackTextureXR);
         }
 
+        static void BindHPWaterBuffers(DeferredLightingPassData causticToDeferredData, CommandBuffer cmd)
+        {
+            cmd.SetGlobalTexture(CausticShaderIDs._WaterCascadeAtlas, causticToDeferredData.causticDepth0Atlas);
+            cmd.SetGlobalTexture(CausticShaderIDs._WaterCascadeDepth1Atlas, causticToDeferredData.causticDepth1Atlas);
+
+            cmd.SetGlobalTexture(CausticShaderIDs._WaterNormalAtlas, causticToDeferredData.causticNormalAtlas);
+            cmd.SetGlobalTexture(CausticShaderIDs._WaterGbuffer1Atlas, causticToDeferredData.causticScatterAtlas);
+
+            cmd.SetGlobalTexture(CausticShaderIDs._CausticCascadeAtlas_R, causticToDeferredData.causticCascadeAtlasR);
+            cmd.SetGlobalTexture(CausticShaderIDs._CausticCascadeAtlas_G, causticToDeferredData.causticCascadeAtlasG);
+            cmd.SetGlobalTexture(CausticShaderIDs._CausticCascadeAtlas_B, causticToDeferredData.causticCascadeAtlasB);
+            cmd.SetGlobalTexture(CausticShaderIDs._CausticCascadeAtlas_Float, causticToDeferredData.causticCascadeAtlas);
+        }
+
         class BuildGPULightListPassData
         {
             // Common
@@ -744,6 +758,15 @@ namespace UnityEngine.Rendering.HighDefinition
             public TextureHandle depthBuffer;
             public TextureHandle depthTexture;
 
+            public TextureHandle causticCascadeAtlas;
+            public TextureHandle causticCascadeAtlasR;
+            public TextureHandle causticCascadeAtlasG;
+            public TextureHandle causticCascadeAtlasB;
+            public TextureHandle causticNormalAtlas;
+            public TextureHandle causticScatterAtlas;
+            public TextureHandle causticDepth0Atlas;
+            public TextureHandle causticDepth1Atlas;
+
             public int gbufferCount;
             public int lightLayersTextureIndex;
             public int shadowMaskTextureIndex;
@@ -949,7 +972,9 @@ namespace UnityEngine.Rendering.HighDefinition
             in LightingBuffers lightingBuffers,
             in GBufferOutput gbuffer,
             in ShadowResult shadowResult,
-            in BuildGPULightListOutput lightLists)
+            in BuildGPULightListOutput lightLists,
+            CausticPackage causticToDeferredData,
+            HPWaterFluidDynamicsPackage fluidDynamicsData)
         {
             if (hdCamera.frameSettings.litShaderMode != LitShaderMode.Deferred ||
                 !hdCamera.frameSettings.IsEnabled(FrameSettingsField.OpaqueObjects))
@@ -1010,6 +1035,34 @@ namespace UnityEngine.Rendering.HighDefinition
                 passData.tileListBuffer = builder.ReadComputeBuffer(lightLists.tileList);
                 passData.dispatchIndirectBuffer = builder.ReadComputeBuffer(lightLists.dispatchIndirectBuffer);
 
+                // HPWater Caustic
+                var blackCausticUInt = builder.CreateTransientTexture(new TextureDesc(1, 1)
+                {
+                    dimension = TextureDimension.Tex2D,
+                    colorFormat = GraphicsFormat.R32_UInt,
+                    clearBuffer = true,
+                    clearColor = Color.clear,
+                    name = "HPWater_BlackCausticUInt"
+                });
+                causticToDeferredData = IsCausticDataValid(causticToDeferredData, renderGraph);
+                if (causticToDeferredData.causticEnabled && causticToDeferredData.useRGBCaustic)
+                {
+                    passData.causticCascadeAtlasR = builder.ReadTexture(causticToDeferredData.causticColorR);
+                    passData.causticCascadeAtlasG = builder.ReadTexture(causticToDeferredData.causticColorG);
+                    passData.causticCascadeAtlasB = builder.ReadTexture(causticToDeferredData.causticColorB);
+                }
+                else
+                {
+                    passData.causticCascadeAtlasR = blackCausticUInt;
+                    passData.causticCascadeAtlasG = blackCausticUInt;
+                    passData.causticCascadeAtlasB = blackCausticUInt;
+                }
+                passData.causticCascadeAtlas = builder.ReadTexture(causticToDeferredData.causticColorFloat);
+                passData.causticNormalAtlas = builder.ReadTexture(causticToDeferredData.causticGbuffer0);
+                passData.causticScatterAtlas = builder.ReadTexture(causticToDeferredData.causticGbuffer1);
+                passData.causticDepth0Atlas = builder.ReadTexture(causticToDeferredData.cascadeWaterDepth);
+                passData.causticDepth1Atlas = builder.ReadTexture(causticToDeferredData.causticCascadeDepth1);
+
                 var output = new LightingOutput();
                 output.colorBuffer = passData.colorBuffer;
 
@@ -1036,6 +1089,7 @@ namespace UnityEngine.Rendering.HighDefinition
                             context.cmd.SetGlobalTexture(HDShaderIDs._ShadowMaskTexture, TextureXR.GetWhiteTexture());
 
                         BindGlobalLightingBuffers(data.lightingBuffers, context.cmd);
+                        BindHPWaterBuffers(data, context.cmd);
 
                         if (data.enableTile)
                         {
