@@ -29,7 +29,14 @@ namespace UnityEngine.Rendering.HighDefinition
             public static readonly int _HPWaterFluidDynamicsBoxCenter = Shader.PropertyToID("_HPWaterFluidDynamicsBoxCenter");
             public static readonly int _HPWaterFluidDynamicsBoxSize = Shader.PropertyToID("_HPWaterFluidDynamicsBoxSize");
             public static readonly int _HPWaterFluidDynamicsEnabled = Shader.PropertyToID("_HPWaterFluidDynamicsEnabled");
+            public static readonly int _HPWaterFluidViewProjMatrix = Shader.PropertyToID("_HPWaterFluidViewProjMatrix");
+            public static readonly int _HPWaterVirtualCameraPos = Shader.PropertyToID("_HPWaterVirtualCameraPos");
         }
+
+        static readonly ShaderTagId[] s_HPWaterFluidHeightPassNames =
+        {
+            new ShaderTagId("HPWaterFluidDynamicsPass"),
+        };
 
         /// <summary>
         /// 流体动力学输入数据
@@ -80,6 +87,7 @@ namespace UnityEngine.Rendering.HighDefinition
             public TextureHandle fluidDynamicsHeight;
             public TextureHandle fluidDynamicsHeightDepth;
             public Material overrideMaterial;
+            public int overrideMaterialPassIndex;
         }
         
         /// <summary>
@@ -184,6 +192,8 @@ namespace UnityEngine.Rendering.HighDefinition
             ResetWaveEquationTextures();
             CoreUtils.Destroy(m_FluidHeightMaterial);
             m_FluidHeightMaterial = null;
+            m_FluidHeightMaterialPassIndex = -1;
+
             if (m_CachedFluidDynamicsCamera != null)
             {
                 CoreUtils.Destroy(m_CachedFluidDynamicsCamera);
@@ -211,15 +221,7 @@ namespace UnityEngine.Rendering.HighDefinition
         private  Camera m_CachedFluidDynamicsCamera;
         private  GameObject m_CachedCameraGameObject;
         private Material m_FluidHeightMaterial;
-
-        private static readonly ShaderTagId[] s_FluidHeightPassNames =
-        {
-            new ShaderTagId("HPWaterGBuffer"),
-            new ShaderTagId("GBuffer"),
-            new ShaderTagId("ForwardOnly"),
-            new ShaderTagId("Forward"),
-            new ShaderTagId("DepthOnly")
-        };
+        private int m_FluidHeightMaterialPassIndex = -1;
         
         // 波动方程纹理缓存（Ping-Pong Buffer）
         private  RTHandle m_WaveHeightCurrent;
@@ -232,6 +234,24 @@ namespace UnityEngine.Rendering.HighDefinition
         private RTHandle m_CachedSceneDepth;        // 缓存的场景深度纹理
         private bool m_HasBakedDepthTextures = false; // 是否已经烘焙过深度纹理
         
+        static Matrix4x4 GetFluidHeightViewProjection(
+            Matrix4x4 viewMatrix,
+            Matrix4x4 projectionMatrix,
+            Vector3 C)
+        {
+            var VP = GL.GetGPUProjectionMatrix(projectionMatrix, true) * viewMatrix;
+
+            // TransformObjectToWorld supplies coordinates relative to the primary HDRP camera.
+            // Fold that camera position into the absolute virtual-camera VP, as the caustic pass does.
+            float offsetX = VP.m00 * C.x + VP.m01 * C.y + VP.m02 * C.z;
+            float offsetY = VP.m10 * C.x + VP.m11 * C.y + VP.m12 * C.z;
+            float offsetZ = VP.m20 * C.x + VP.m21 * C.y + VP.m22 * C.z;
+
+            // VP.m03 += offsetX;
+            // VP.m13 += offsetY;
+            // VP.m23 += offsetZ;
+            return VP;
+        }
 
         HPWaterFluidDynamicsPackage RenderHPWaterFluidDynamics(
             RenderGraph renderGraph,
@@ -242,7 +262,7 @@ namespace UnityEngine.Rendering.HighDefinition
             // 如果没有指定水面Layer，使用默认Layer 4
             if (waterLayerMask == 0)
             {
-                waterLayerMask = 1 << 4;
+                waterLayerMask = 1 << 3;
             }
 
             // 检查是否有参数提供者
@@ -263,18 +283,6 @@ namespace UnityEngine.Rendering.HighDefinition
             {
                 ResetWaveEquationTextures();//释放纹理
                 return new HPWaterFluidDynamicsPackage 
-                {
-                    fluidDynamicsDepth = renderGraph.defaultResources.blackTexture,
-                    waveHeightTexture = renderGraph.defaultResources.blackTexture,
-                    enabled = false
-                };
-            }
-
-            if (m_FluidHeightMaterial == null && defaultResources.shaders.fluidHeightPS != null)
-                m_FluidHeightMaterial = CoreUtils.CreateEngineMaterial(defaultResources.shaders.fluidHeightPS);
-            if (m_FluidHeightMaterial == null)
-            {
-                return new HPWaterFluidDynamicsPackage
                 {
                     fluidDynamicsDepth = renderGraph.defaultResources.blackTexture,
                     waveHeightTexture = renderGraph.defaultResources.blackTexture,
@@ -319,8 +327,8 @@ namespace UnityEngine.Rendering.HighDefinition
             virtualCamera.orthographic = true;
             virtualCamera.orthographicSize = orthoHeight; // 正交相机的半高
             virtualCamera.aspect = orthoWidth / orthoHeight;
-            virtualCamera.nearClipPlane = nearClip;
-            virtualCamera.farClipPlane = farClip;
+            virtualCamera.nearClipPlane = 0.1f; // TODO
+            virtualCamera.farClipPlane = hdCamera.camera.farClipPlane; // TODO
 
             // 从配置好的相机获取正确的矩阵
             // 使用 HDRP 官方的方式处理矩阵
@@ -473,8 +481,12 @@ namespace UnityEngine.Rendering.HighDefinition
                     // 设置虚拟相机的裁剪遮罩,SetRenderFunc内部修改，因为这里是延迟执行的
                     data.virtualCamera.cullingMask = data.LayerMask;
 
-                    CoreUtils.SetRenderTarget(ctx.cmd, data.fluidDynamicsHeight, data.fluidDynamicsHeightDepth,
-                        ClearFlag.All, new Color(-65504.0f, 0.0f, 0.0f, 0.0f));
+                    CoreUtils.SetRenderTarget(
+                        ctx.cmd,
+                        data.fluidDynamicsHeight,
+                        data.fluidDynamicsHeightDepth,
+                        ClearFlag.All,
+                        new Color(-65504.0f, 0.0f, 0.0f, 0.0f));
 
                     // 使用虚拟相机执行裁剪
                     if (!data.virtualCamera.TryGetCullingParameters(out ScriptableCullingParameters virtualCullingParams))
@@ -488,31 +500,26 @@ namespace UnityEngine.Rendering.HighDefinition
 
                     // 创建 RendererList
                     var rendererListDesc = new RendererListDesc(
-                        s_FluidHeightPassNames,
+                        s_HPWaterFluidHeightPassNames,
                         virtualCullingResults,
                         data.virtualCamera)
                     {
-                        renderQueueRange = RenderQueueRange.all,
+                        renderQueueRange = RenderQueueRange.opaque,
                         sortingCriteria = SortingCriteria.CommonOpaque,
                         layerMask = data.LayerMask,
-                        overrideMaterial = data.overrideMaterial,
-                        overrideMaterialPassIndex = 0
                     };
 
                     var rendererList = ctx.renderContext.CreateRendererList(rendererListDesc);
-
-                    // 设置垂直相机的 VP 矩阵
-                    ctx.cmd.SetViewProjectionMatrices(
+                    var VP = GetFluidHeightViewProjection(
                         data.verticalViewMatrix,
-                        data.verticalProjectionMatrix);
+                        data.verticalProjectionMatrix,
+                        data.hdCamera.camera.transform.position);
+                    // 设置垂直相机的 VP 矩阵
+                    ctx.cmd.SetGlobalMatrix(HPWaterFluidDynamicsShaderIDs._HPWaterFluidViewProjMatrix, VP);
+                    ctx.cmd.SetGlobalVector(HPWaterFluidDynamicsShaderIDs._HPWaterVirtualCameraPos, virtualCamera.transform.position);
 
                     // 绘制场景物体（除水面）
                     CoreUtils.DrawRendererList(ctx.renderContext, ctx.cmd, rendererList);
-
-                    // 恢复主相机矩阵
-                    ctx.cmd.SetViewProjectionMatrices(
-                        data.hdCamera.camera.worldToCameraMatrix,
-                        data.hdCamera.camera.projectionMatrix);
                 });
 
                 return passData.fluidDynamicsHeight;
@@ -576,8 +583,12 @@ namespace UnityEngine.Rendering.HighDefinition
                     // 设置虚拟相机的裁剪遮罩
                     data.virtualCamera.cullingMask = data.LayerMask;
 
-                    CoreUtils.SetRenderTarget(ctx.cmd, data.fluidDynamicsHeight, data.fluidDynamicsHeightDepth,
-                        ClearFlag.All, new Color(-65504.0f, 0.0f, 0.0f, 0.0f));
+                    CoreUtils.SetRenderTarget(
+                        ctx.cmd,
+                        data.fluidDynamicsHeight,
+                        data.fluidDynamicsHeightDepth,
+                        ClearFlag.All,
+                        new Color(-65504.0f, 0.0f, 0.0f, 0.0f));
 
                     // 使用虚拟相机执行裁剪
                     if (!data.virtualCamera.TryGetCullingParameters(out ScriptableCullingParameters virtualCullingParams))
@@ -590,31 +601,27 @@ namespace UnityEngine.Rendering.HighDefinition
 
                     // 创建 RendererList
                     var rendererListDesc = new RendererListDesc(
-                        s_FluidHeightPassNames,
+                        s_HPWaterFluidHeightPassNames,
                         virtualCullingResults,
                         data.virtualCamera)
                     {
-                        renderQueueRange = RenderQueueRange.all,
+                        renderQueueRange = RenderQueueRange.opaque,
                         sortingCriteria = SortingCriteria.CommonOpaque,
                         layerMask = data.LayerMask,
-                        overrideMaterial = data.overrideMaterial,
-                        overrideMaterialPassIndex = 0
                     };
 
                     var rendererList = ctx.renderContext.CreateRendererList(rendererListDesc);
 
-                    // 设置垂直相机的 VP 矩阵
-                    ctx.cmd.SetViewProjectionMatrices(
+                    var VP = GetFluidHeightViewProjection(
                         data.verticalViewMatrix,
-                        data.verticalProjectionMatrix);
+                        data.verticalProjectionMatrix,
+                        data.hdCamera.camera.transform.position);
+                    // 设置垂直相机的 VP 矩阵
+                    ctx.cmd.SetGlobalMatrix(HPWaterFluidDynamicsShaderIDs._HPWaterFluidViewProjMatrix, VP);
+                    ctx.cmd.SetGlobalVector(HPWaterFluidDynamicsShaderIDs._HPWaterVirtualCameraPos, virtualCamera.transform.position);
 
                     // 绘制场景物体
                     CoreUtils.DrawRendererList(ctx.renderContext, ctx.cmd, rendererList);
-
-                    // 恢复主相机矩阵
-                    ctx.cmd.SetViewProjectionMatrices(
-                        data.hdCamera.camera.worldToCameraMatrix,
-                        data.hdCamera.camera.projectionMatrix);
                 });
 
                 return passData.fluidDynamicsHeight;
@@ -736,16 +743,12 @@ namespace UnityEngine.Rendering.HighDefinition
                     // 设置波动方程参数
                     ctx.cmd.SetComputeFloatParam(cs, HPWaterFluidDynamicsShaderIDs._WaveSpeed, data.inputData.waveSpeed);
                     ctx.cmd.SetComputeFloatParam(cs, HPWaterFluidDynamicsShaderIDs._DampingFactor, data.inputData.dampingFactor);
-                    ctx.cmd.SetComputeFloatParam(cs, HPWaterFluidDynamicsShaderIDs._DeltaTime,
-                        Mathf.Min(Mathf.Max(Time.deltaTime, 0.0f), 1.0f / 30.0f));
+                    ctx.cmd.SetComputeFloatParam(cs, HPWaterFluidDynamicsShaderIDs._DeltaTime, Time.deltaTime);
                     
                     // 设置波源参数
-                    ctx.cmd.SetComputeVectorParam(cs, HPWaterFluidDynamicsShaderIDs._WaveSourceUV, 
-                        data.inputData.waveSourceUV);
-                    ctx.cmd.SetComputeFloatParam(cs, HPWaterFluidDynamicsShaderIDs._WaveSourceIntensity, 
-                        data.inputData.waveSourceIntensity);
-                    ctx.cmd.SetComputeFloatParam(cs, HPWaterFluidDynamicsShaderIDs._WaveSourceRadius, 
-                        data.inputData.waveSourceRadius);
+                    ctx.cmd.SetComputeVectorParam(cs, HPWaterFluidDynamicsShaderIDs._WaveSourceUV, new Vector2(UnityEngine.Random.value, UnityEngine.Random.value));
+                    ctx.cmd.SetComputeFloatParam(cs, HPWaterFluidDynamicsShaderIDs._WaveSourceIntensity, data.inputData.waveSourceIntensity);
+                    ctx.cmd.SetComputeFloatParam(cs, HPWaterFluidDynamicsShaderIDs._WaveSourceRadius, data.inputData.waveSourceRadius);
                     
                     // Dispatch Compute Shader
                     cs.GetKernelThreadGroupSizes(kernel, out uint x, out uint y, out _);

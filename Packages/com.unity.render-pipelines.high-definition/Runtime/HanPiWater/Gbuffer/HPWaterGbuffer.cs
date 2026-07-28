@@ -65,7 +65,7 @@ namespace UnityEngine.Rendering.HighDefinition
             // 如果没有指定水面Layer，使用默认Layer 4
             if (waterLayerMask == 0)
             {
-                waterLayerMask = 1 << 4;
+                waterLayerMask = 1 << 3;
             }
             if (OnGetHPWaterVolumeInputData == null)
             {

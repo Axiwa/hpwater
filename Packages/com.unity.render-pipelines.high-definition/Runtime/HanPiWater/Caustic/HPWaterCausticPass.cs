@@ -277,7 +277,7 @@ namespace UnityEngine.Rendering.HighDefinition
             // 如果没有指定水面Layer，使用默认Layer 4
             if (WaterlayerMask == 0)
             {
-                WaterlayerMask = 1 << 4;
+                WaterlayerMask = 1 << 3;
             }
             
             // 初始化 Pack Shader 和 Material

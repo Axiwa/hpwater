@@ -177,14 +177,15 @@ namespace UnityEngine.Rendering.HighDefinition
 
                     RenderShadows(m_RenderGraph, hdCamera, cullingResults, ref shadowResult);
 
+                    // Fluid Dynamics
+                    fluidDynamicsData = RenderHPWaterFluidDynamics(m_RenderGraph, hdCamera, cullingResults, 1 << 3);
+                    SetGlobalHPWaterFluidDynamics(m_RenderGraph, fluidDynamicsData);
+
                     // Push common parameters before caustic generation. The second push below
                     // publishes the actual caustic mode after all availability checks.
                     PushHPWaterGlobalShaderVariable(m_RenderGraph, null);
-                    causticToDeferredData = RenderCaustics(m_RenderGraph, hdCamera, cullingResults, shadowResult, 0);
+                    causticToDeferredData = RenderCaustics(m_RenderGraph, hdCamera, cullingResults, shadowResult, 1 << 3);
                     PushHPWaterGlobalShaderVariable(m_RenderGraph, causticToDeferredData);
-                    // TODO: Update wave function of water
-                    fluidDynamicsData = RenderHPWaterFluidDynamics(m_RenderGraph, hdCamera, cullingResults, 0);
-                    SetGlobalHPWaterFluidDynamics(m_RenderGraph, fluidDynamicsData);
 
                     StartXRSinglePass(m_RenderGraph, hdCamera);
                     // Evaluate the clear coat mask texture based on the lit shader mode

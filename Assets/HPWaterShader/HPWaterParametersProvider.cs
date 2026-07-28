@@ -18,7 +18,7 @@ public class HPWaterParametersProvider : MonoBehaviour
     public int causticRenderSize = 1024;
     public int gbuffer1AtlasSize = 256;
     public int waterCascadeAtlasSize = 1024;
-    public bool useRGBCaustic = true;
+    public bool useRGBCaustic = false;
     public float causticIntensity = 1.0f;
     public float crossDistance = 1.0f;
     public float dispersionStrength = 0.1f;
@@ -51,42 +51,24 @@ public class HPWaterParametersProvider : MonoBehaviour
     public float minFilterSize = 0.1f;
 
     [Header("Fluid Dynamics (Wave Simulation)")]
-    public bool enableFluidDynamics = false;
+    public bool enableFluidDynamics = true;
     public bool startFrameBakeProcess = false;
     public Vector3 fluidBoxCenter = new Vector3(0, 0, 0);
-    public Vector3 fluidBoxSize = new Vector3(20, 5, 20);
+    public Vector3 fluidBoxSize = new Vector3(20, 20, 20);
     public float fluidCameraHeight = 15.0f;
     public int sceneDepthTextureResolution = 256;
     public int waterDepthTextureResolution = 256;
     public int waveHeightTextureResolution = 256;
-    public float waveSpeed = 1.0f;
-    public float dampingFactor = 0.02f;
-    public float waveSourceRadius = 5.0f;
-
-    private void OnEnable()
-    {
-        HDRenderPipeline.OnGetWaterRefractionParameters     += ProvideWaterRefraction;
-        HDRenderPipeline.OnGetHPWaterVolumeInputData        += ProvideWaterVolume;
-        HDRenderPipeline.OnGetCausticParameters             += ProvideCaustic;
-        HDRenderPipeline.OnGetHPWaterFluidDynamicsInputData += ProvideFluidDynamics;
-        HDRenderPipeline.OnGetHPWaterGlobalParams           += ProvideGlobalParams;
-    }
-
-    private void OnDisable()
-    {
-        HDRenderPipeline.OnGetWaterRefractionParameters     -= ProvideWaterRefraction;
-        HDRenderPipeline.OnGetHPWaterVolumeInputData        -= ProvideWaterVolume;
-        HDRenderPipeline.OnGetCausticParameters             -= ProvideCaustic;
-        HDRenderPipeline.OnGetHPWaterFluidDynamicsInputData -= ProvideFluidDynamics;
-        HDRenderPipeline.OnGetHPWaterGlobalParams           -= ProvideGlobalParams;
-    }
+    public float waveSpeed = 10.0f;
+    public float dampingFactor = 0.0001f;
+    public float waveSourceRadius = 1.0f;
 
     private HDRenderPipeline.WaterRefractionInputData ProvideWaterRefraction()
     {
         return new HDRenderPipeline.WaterRefractionInputData
         {
             useRayMarching = useRayMarching,
-            rayMarchingSampleCount = rayMarchingSampleCount
+            // rayMarchingSampleCount = rayMarchingSampleCount
         };
     }
 
@@ -94,21 +76,21 @@ public class HPWaterParametersProvider : MonoBehaviour
     {
         return new HDRenderPipeline.HPWaterVolumeInputData
         {
-            resolutionScale              = volumeResolutionScale,
-            temporalBlendFactor          = temporalBlendFactor,
-            enableSpatialFilter          = enableSpatialFilter,
-            spatialFilterIterations      = spatialFilterIterations,
-            enableDepthAwareUpsampling   = enableDepthAwareUpsampling,
-            enableMotionVectors          = enableMotionVectors,
-            motionVectorVelocityScale    = motionVectorVelocityScale,
-            enableTemporalDepthRejection = enableTemporalDepthRejection,
-            temporalDepthThreshold       = temporalDepthThreshold,
-            enableSpatialDepthAware      = enableSpatialDepthAware,
-            spatialDepthSensitivity      = spatialDepthSensitivity,
-            shadowSoftness               = shadowSoftness,
-            blockerSampleCount           = blockerSampleCount,
-            filterSampleCount            = filterSampleCount,
-            minFilterSize                = minFilterSize
+            // resolutionScale              = volumeResolutionScale,
+            // temporalBlendFactor          = temporalBlendFactor,
+            // enableSpatialFilter          = enableSpatialFilter,
+            // spatialFilterIterations      = spatialFilterIterations,
+            // enableDepthAwareUpsampling   = enableDepthAwareUpsampling,
+            // enableMotionVectors          = enableMotionVectors,
+            // motionVectorVelocityScale    = motionVectorVelocityScale,
+            // enableTemporalDepthRejection = enableTemporalDepthRejection,
+            // temporalDepthThreshold       = temporalDepthThreshold,
+            // enableSpatialDepthAware      = enableSpatialDepthAware,
+            // spatialDepthSensitivity      = spatialDepthSensitivity,
+            // shadowSoftness               = shadowSoftness,
+            // blockerSampleCount           = blockerSampleCount,
+            // filterSampleCount            = filterSampleCount,
+            // minFilterSize                = minFilterSize
         };
     }
 
@@ -116,29 +98,26 @@ public class HPWaterParametersProvider : MonoBehaviour
     {
         return new HDRenderPipeline.CausticInputData
         {
-            causticRenderSize      = causticRenderSize,
-            gbuffer1AtlasSize      = gbuffer1AtlasSize,
-            waterCascadeAtlasSize  = waterCascadeAtlasSize,
-            useRGBCaustic          = useRGBCaustic,
-            showDebugInfo          = false,
-            useSpecifiedMaterial   = false,
-            specifiedMaterial      = null,
-            depthBias              = 1.0f,
-            slopeBias              = 0.5f,
-            forwardRandomOffset    = forwardRandomOffset,
-            causticIntensity       = causticIntensity,
-            crossDistance          = crossDistance,
-            dispersionStrength     = dispersionStrength,
-            atrousLuminanceWeight  = atrousLuminanceWeight,
-            useAtrousDenoise       = useAtrousDenoise
+            // causticRenderSize      = causticRenderSize,
+            // gbuffer1AtlasSize      = gbuffer1AtlasSize,
+            // waterCascadeAtlasSize  = waterCascadeAtlasSize,
+            useRGBCaustic          = false,
+            // showDebugInfo          = false,
+            // useSpecifiedMaterial   = false,
+            // specifiedMaterial      = null,
+            // depthBias              = 1.0f,
+            // slopeBias              = 0.5f,
+            // forwardRandomOffset    = forwardRandomOffset,
+            // causticIntensity       = causticIntensity,
+            // crossDistance          = crossDistance,
+            // dispersionStrength     = dispersionStrength,
+            // atrousLuminanceWeight  = atrousLuminanceWeight,
+            // useAtrousDenoise       = useAtrousDenoise
         };
     }
 
     private HDRenderPipeline.HPWaterFluidDynamicsInputData ProvideFluidDynamics()
     {
-        if (!enableFluidDynamics)
-            return null;
-
         return new HDRenderPipeline.HPWaterFluidDynamicsInputData
         {
             startFrameBakeProcess         = startFrameBakeProcess,
@@ -151,8 +130,8 @@ public class HPWaterParametersProvider : MonoBehaviour
             waveSpeed                     = waveSpeed,
             dampingFactor                 = dampingFactor,
             waveSourceRadius              = waveSourceRadius,
-            waveSourceUV                  = new Vector2(-1, -1),
-            waveSourceIntensity           = 0.0f
+            waveSourceUV                  = new Vector2(0.5f, 0.5f),
+            waveSourceIntensity           = 0.1f
         };
     }
 
@@ -173,5 +152,23 @@ public class HPWaterParametersProvider : MonoBehaviour
             _Is_Use_RGB_Caustic          = useRGBCaustic ? 1 : 0,
             _UnusedHPWaterGlobalParams   = 0.0f
         };
+    }
+
+    private void OnEnable()
+    {
+        HDRenderPipeline.OnGetWaterRefractionParameters     += ProvideWaterRefraction;
+        HDRenderPipeline.OnGetHPWaterVolumeInputData        += ProvideWaterVolume;
+        HDRenderPipeline.OnGetCausticParameters             += ProvideCaustic;
+        HDRenderPipeline.OnGetHPWaterFluidDynamicsInputData += ProvideFluidDynamics;
+        HDRenderPipeline.OnGetHPWaterGlobalParams           += ProvideGlobalParams;
+    }
+
+    private void OnDisable()
+    {
+        HDRenderPipeline.OnGetWaterRefractionParameters     -= ProvideWaterRefraction;
+        HDRenderPipeline.OnGetHPWaterVolumeInputData        -= ProvideWaterVolume;
+        HDRenderPipeline.OnGetCausticParameters             -= ProvideCaustic;
+        HDRenderPipeline.OnGetHPWaterFluidDynamicsInputData -= ProvideFluidDynamics;
+        HDRenderPipeline.OnGetHPWaterGlobalParams           -= ProvideGlobalParams;
     }
 }

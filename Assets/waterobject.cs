@@ -34,12 +34,20 @@ public class WaterRefractionManager : MonoBehaviour
         return data;
     }
 
+    private HDRenderPipeline.HPWaterFluidDynamicsInputData ProvideFluid()
+    {
+        HDRenderPipeline.HPWaterFluidDynamicsInputData data = new HDRenderPipeline.HPWaterFluidDynamicsInputData();
+
+        return data;
+    }
+
     private void OnEnable()
     {
         // 订阅事件
         HDRenderPipeline.OnGetWaterRefractionParameters += ProvideWaterRefractionParameters;
         HDRenderPipeline.OnGetHPWaterVolumeInputData += ProvideWaterVolumeParameters;
         HDRenderPipeline.OnGetCausticParameters += ProvideCausticParameters;
+        HDRenderPipeline.OnGetHPWaterFluidDynamicsInputData += ProvideFluid;
     }
 
     private void OnDisable()
@@ -48,5 +56,6 @@ public class WaterRefractionManager : MonoBehaviour
         HDRenderPipeline.OnGetWaterRefractionParameters -= ProvideWaterRefractionParameters;
         HDRenderPipeline.OnGetHPWaterVolumeInputData -= ProvideWaterVolumeParameters;
         HDRenderPipeline.OnGetCausticParameters -= ProvideCausticParameters;
+        HDRenderPipeline.OnGetHPWaterFluidDynamicsInputData -= ProvideFluid;
     }
 }

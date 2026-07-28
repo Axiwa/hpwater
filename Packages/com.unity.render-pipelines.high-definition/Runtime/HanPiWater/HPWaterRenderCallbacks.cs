@@ -60,7 +60,7 @@ namespace UnityEngine.Rendering.HighDefinition
         /// </summary>
         internal static LayerMask CheckGetWaterLayerMask()
         {
-            return GetWaterLayerMask?.Invoke() ?? 1<<4;
+            return GetWaterLayerMask?.Invoke() ?? 1<<3;
         }
 
         /// <summary>

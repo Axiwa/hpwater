@@ -1,6 +1,7 @@
 #pragma kernel UpdateWaveEquation
 
 #pragma only_renderers d3d11 playstation xboxone xboxseries vulkan metal switch
+#pragma enable_d3d11_debug_symbols
 
 // SRP includes
 #include "Packages/com.unity.render-pipelines.core/ShaderLibrary/Common.hlsl"
@@ -159,7 +160,7 @@ void UpdateWaveEquation(uint3 id : SV_DispatchThreadID)
         {
             float sigma = _WaveSourceRadius * 0.4;  // 标准差
             float gaussian = exp(-r * r * rcp(2.0 * sigma * sigma));
-            float ripple = min(gaussian * _WaveSourceIntensity, 0.05);
+            float ripple = min(gaussian * 0.05, 0.05);
             u_next += ripple * absorption;
         }
     }

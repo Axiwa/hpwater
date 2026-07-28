@@ -22,8 +22,6 @@ namespace UnityEngine.Rendering.HighDefinition
             public ComputeShader WaterVolumeCS;
             [Reload("Runtime/HanPiWater/FluidDynamics/HPWaterWaveEquation.compute")]
             public ComputeShader WaveEquationCS;
-            [Reload("Runtime/HanPiWater/FluidDynamics/HPWaterFluidHeight.shader")]
-            public Shader fluidHeightPS;
 
             // Debug
             [Reload("Runtime/Debug/DebugDisplayLatlong.Shader")]
