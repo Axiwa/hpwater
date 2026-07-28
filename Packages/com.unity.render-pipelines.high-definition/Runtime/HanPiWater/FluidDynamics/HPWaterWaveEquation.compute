@@ -136,6 +136,8 @@ void UpdateWaveEquation(uint3 id : SV_DispatchThreadID)
     absorption = saturate(1 - absorption * absorption);
 
     //===============能量保留率===============
+    // Keep damping approximately invariant when the render/update rate changes.
+    float dampingRetention = pow(saturate(1.0 - _DampingFactor), max(_DeltaTime, 0.0) * 60.0) * 2;
     float energyRetention = (1 - _DampingFactor) * absorption;
     
     // CFL稳定性条件: c*dt/dx < 1/sqrt(2) ≈ 0.707 (2D)
@@ -161,7 +163,9 @@ void UpdateWaveEquation(uint3 id : SV_DispatchThreadID)
             float sigma = _WaveSourceRadius * 0.4;  // 标准差
             float gaussian = exp(-r * r * rcp(2.0 * sigma * sigma));
             float ripple = min(gaussian * 0.05, 0.05);
-            u_next += ripple * absorption;
+            // Treat source intensity as a rate calibrated at 60 Hz instead of an
+            // amount added once for every camera/Editor repaint.
+            u_next += ripple * clamp(_DeltaTime * 60.0, 0.0, 1.0) * absorption;
         }
     }
     

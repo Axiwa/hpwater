@@ -142,12 +142,20 @@ namespace UnityEngine.Rendering.HighDefinition
 
                     builder.SetRenderFunc((RenderWaterGbufferPassData data, RenderGraphContext ctx) =>
                     {
-                        // 设置水面 Stencil 值（用于后续判断水面像素）
-                        // 参考官方水系统：使用 WaterSurface | TraceReflectionRay
+                        // 设置 HPWater 专用 Stencil 值（用于后续判断水面像素）
                         // 使用水面专用属性名称，避免被材质属性覆盖
-                        int waterStencilRef = (int)(StencilUsage.WaterSurface | StencilUsage.TraceReflectionRay);
+                        // Use a user stencil bit so HDRP's built-in Water deferred
+                        // pass does not consume HPWater pixels (and vice versa).
+                        int waterStencilRef = (int)(StencilUsage.UserBit0 | StencilUsage.TraceReflectionRay);
+                        int waterStencilWriteMask = (int)(
+                            StencilUsage.UserBit0 |
+                            StencilUsage.WaterSurface |
+                            StencilUsage.TraceReflectionRay);
                         ctx.cmd.SetGlobalFloat(HPWaterGbufferShaderIDs._StencilWaterRefGBuffer, waterStencilRef);
-                        ctx.cmd.SetGlobalFloat(HPWaterGbufferShaderIDs._StencilWaterWriteMaskGBuffer, waterStencilRef);
+                        // WaterSurface is intentionally present only in the write
+                        // mask: a nearer HPWater pixel clears an official Water flag
+                        // that may already exist at the same screen position.
+                        ctx.cmd.SetGlobalFloat(HPWaterGbufferShaderIDs._StencilWaterWriteMaskGBuffer, waterStencilWriteMask);
 
                         // RenderGraph 已经通过 UseColorBuffer/UseDepthBuffer 自动设置了 RenderTarget
                         // 直接绘制水面，输出到所有 3 个 GBuffer + 深度

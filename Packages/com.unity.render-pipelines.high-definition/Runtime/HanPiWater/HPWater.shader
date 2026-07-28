@@ -226,7 +226,7 @@ Shader "Hidden/HDRP/HanPiWater/HPWater"
             // 参考 HPWaterVolume.cs 的做法，使用 _StencilTexture 判断水面像素
             uint stencilValue = GetStencilValue(LOAD_TEXTURE2D_X(_StencilTexture, positionSS));
             [branch]
-            if ((stencilValue & STENCILUSAGE_WATER_SURFACE) == 0)
+            if ((stencilValue & STENCILUSAGE_USER_BIT0) == 0)
             {
                 // 不是水面像素，直接返回零偏移
                 return 0;

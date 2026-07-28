@@ -117,7 +117,7 @@ namespace UnityEngine.Rendering.HighDefinition
             public int gbuffer1AtlasSize = 256;//低分辨率Gbuffer1尺寸
             public int waterCascadeAtlasSize = 1024;//水面级联图集尺寸
             public bool useRGBCaustic = true;//是否使用RGB焦散
-            public bool showDebugInfo = true;//是否显示调试信息
+            public bool showDebugInfo = false;//是否显示调试信息
             public bool useSpecifiedMaterial = false;//是否使用指定材质
             public Material specifiedMaterial;//指定材质
 

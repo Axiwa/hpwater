@@ -217,6 +217,24 @@ namespace UnityEngine.Rendering.HighDefinition
         /// </summary>
         public static event HPWaterFluidDynamicsInputDataProvider OnGetHPWaterFluidDynamicsInputData;
         
+
+        private static HPWaterFluidDynamicsInputData GetFluidDynamicsInputData()
+        {
+            if (OnGetHPWaterFluidDynamicsInputData == null)
+                return null;
+
+            HPWaterFluidDynamicsInputData validInputData = null;
+            foreach (HPWaterFluidDynamicsInputDataProvider provider in
+                     OnGetHPWaterFluidDynamicsInputData.GetInvocationList())
+            {
+                HPWaterFluidDynamicsInputData candidate = provider();
+                if (candidate != null && candidate.IsValid())
+                    validInputData = candidate;
+            }
+
+            return validInputData;
+        }
+        
         // 缓存的虚拟相机（避免每帧创建 GC）
         private  Camera m_CachedFluidDynamicsCamera;
         private  GameObject m_CachedCameraGameObject;
@@ -746,7 +764,7 @@ namespace UnityEngine.Rendering.HighDefinition
                     ctx.cmd.SetComputeFloatParam(cs, HPWaterFluidDynamicsShaderIDs._DeltaTime, Time.deltaTime);
                     
                     // 设置波源参数
-                    ctx.cmd.SetComputeVectorParam(cs, HPWaterFluidDynamicsShaderIDs._WaveSourceUV, new Vector2(UnityEngine.Random.value, UnityEngine.Random.value));
+                    ctx.cmd.SetComputeVectorParam(cs, HPWaterFluidDynamicsShaderIDs._WaveSourceUV, new Vector2(UnityEngine.Random.value * 0.5f, UnityEngine.Random.value * 0.5f));
                     ctx.cmd.SetComputeFloatParam(cs, HPWaterFluidDynamicsShaderIDs._WaveSourceIntensity, data.inputData.waveSourceIntensity);
                     ctx.cmd.SetComputeFloatParam(cs, HPWaterFluidDynamicsShaderIDs._WaveSourceRadius, data.inputData.waveSourceRadius);
                     

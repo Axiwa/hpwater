@@ -24,7 +24,7 @@ void CopyWaterNormalToPrepass(uint3 dispatchThreadId : SV_DispatchThreadID)
     
     // 使用 Stencil 判断该像素是否是水面
     uint stencilValue = GetStencilValue(LOAD_TEXTURE2D_X(_StencilTexture, positionSS));
-    if ((stencilValue & STENCILUSAGE_WATER_SURFACE) == 0)
+    if ((stencilValue & STENCILUSAGE_USER_BIT0) == 0)
         return;  // 不是水面像素，跳过
     
     // 复制水面法线到 prepass normal buffer

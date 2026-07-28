@@ -59,8 +59,8 @@ public class HPWaterParametersProvider : MonoBehaviour
     public int sceneDepthTextureResolution = 256;
     public int waterDepthTextureResolution = 256;
     public int waveHeightTextureResolution = 256;
-    public float waveSpeed = 10.0f;
-    public float dampingFactor = 0.0001f;
+    public float waveSpeed = 2.0f;
+    public float dampingFactor = 0.001f;
     public float waveSourceRadius = 1.0f;
 
     private HDRenderPipeline.WaterRefractionInputData ProvideWaterRefraction()
