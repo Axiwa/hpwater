@@ -115,6 +115,31 @@ void ApplyHPWaterFluidDisplacement(inout AttributesMesh inputMesh)
 #endif
 }
 
+#ifdef TESSELLATION_ON
+void ApplyHPWaterFluidDisplacementToDS(inout VaryingsMeshToDS inputMesh)
+{
+    if (_HPWaterFluidDynamicsEnabled == 0)
+        return;
+
+    float3 absolutePositionWS = GetAbsolutePositionWS(inputMesh.positionRWS);
+    float2 fluidUV = WorldPosToFluidUV(absolutePositionWS);
+    if (!IsInsideHPWaterFluidDomain(fluidUV))
+        return;
+
+    float waveHeight;
+    HPWaterFluidHeight_float(absolutePositionWS, waveHeight);
+    inputMesh.positionRWS.y += waveHeight;
+
+#if defined(ATTRIBUTES_NEED_NORMAL)
+    float3 fluidNormalWS;
+    HPWaterFluidHeightToNormal_float(absolutePositionWS, fluidNormalWS);
+    float3 blendedNormalWS;
+    HPWaterFluidWorldNormalBlend_float(inputMesh.normalWS, fluidNormalWS, blendedNormalWS);
+    inputMesh.normalWS = blendedNormalWS;
+#endif
+    
+}
+#endif
 
 
 #endif

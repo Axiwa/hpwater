@@ -10,6 +10,17 @@ Shader "HanPiWater/WaterMesh"
 
         [HDR] _FoamColor("Foam Color", Color) = (1.0, 1.0, 1.0, 1.0)
         _FoamIntensity("Foam Intensity", Range(0.0, 1.0)) = 0.0
+
+        [Enum(None, 0, Phong, 1)] _TessellationMode("Tessellation mode", Float) = 0
+        _TessellationFactor("Tessellation Factor", Range(0.0, 64.0)) = 64
+        _TessellationFactorMinDistance("Tessellation start fading distance", Float) = 0
+        _TessellationFactorMaxDistance("Tessellation end fading distance", Float) = 0
+        _TessellationFactorTriangleSize("Tessellation triangle size", Float) = 0
+        _TessellationShapeFactor("Tessellation shape factor", Range(0.0, 1.0)) = 0.75
+        _TessellationBackFaceCullEpsilon("Tessellation back face epsilon", Range(-1.0, 0.0)) = -1
+        [HiddenInInspector] _TessellationObjectScale("Tessellation object scale", Float) = 1.0
+        [HiddenInInspector] _TessellationTilingScale("Tessellation tiling scale", Float) = 1.00
+        _TessellationMaxDisplacement("Tessellation Displacement", Float) = 1.0
     }
 
     HLSLINCLUDE
@@ -71,7 +82,10 @@ Shader "HanPiWater/WaterMesh"
             #define VARYINGS_NEED_CULLFACE
 
             #define DEBUGMODE_ON
+            #define TESSELLATION_ON
             
+            #include "Packages/com.unity.render-pipelines.core/ShaderLibrary/GeometricTools.hlsl"
+            #include "Packages/com.unity.render-pipelines.core/ShaderLibrary/Tessellation.hlsl"
             #include "Packages/com.unity.render-pipelines.high-definition/Runtime/Material/Material.hlsl"
             #include "Packages/com.unity.render-pipelines.high-definition/Runtime/RenderPipeline/ShaderPass/VaryingMesh.hlsl"
             #include "Packages/com.unity.render-pipelines.high-definition/Runtime/HanPiWater/Deferred/HPWater.hlsl"
@@ -81,6 +95,27 @@ Shader "HanPiWater/WaterMesh"
             float4 _FoamColor;
             float4 _ScatterColor;
             float4 _AbsorptionColor;
+#ifdef TESSELLATION_ON
+            float _TessellationFactor;
+            float _TessellationFactorMinDistance;
+            float _TessellationFactorMaxDistance;
+            float _TessellationFactorTriangleSize;
+            float _TessellationShapeFactor;
+            float _TessellationBackFaceCullEpsilon;
+            float _TessellationObjectScale;
+            float _TessellationTilingScale;
+            float _TessellationMaxDisplacement;
+#endif
+
+            float GetTessellationFactor(AttributesMesh input)
+            {
+                return _TessellationFactor;
+            }
+
+            float GetMaxDisplacement()
+            {
+                return _TessellationMaxDisplacement;
+            }
 
             void GetSurfaceAndBuiltinData(FragInputs fragInputs, float3 viewDirection, inout PositionInputs posInput, out SurfaceData surfaceData, out BuiltinData builtinData)
             {
@@ -100,6 +135,8 @@ Shader "HanPiWater/WaterMesh"
 
             #pragma vertex Vert
             #pragma fragment Frag
+            #pragma hull Hull
+            #pragma domain Domain
 
             ENDHLSL
         }
@@ -151,7 +188,10 @@ Shader "HanPiWater/WaterMesh"
             #define VARYINGS_NEED_CULLFACE
 
             #define WRITE_NORMAL_BUFFER
+            #define TESSELLATION_ON
             
+            #include "Packages/com.unity.render-pipelines.core/ShaderLibrary/GeometricTools.hlsl"
+            #include "Packages/com.unity.render-pipelines.core/ShaderLibrary/Tessellation.hlsl"
             #include "Packages/com.unity.render-pipelines.high-definition/Runtime/Material/Material.hlsl"
             #include "Packages/com.unity.render-pipelines.high-definition/Runtime/RenderPipeline/ShaderPass/VaryingMesh.hlsl"
             #include "Packages/com.unity.render-pipelines.high-definition/Runtime/HanPiWater/Deferred/HPWater.hlsl"
@@ -161,6 +201,27 @@ Shader "HanPiWater/WaterMesh"
             float4 _FoamColor;
             float4 _ScatterColor;
             float4 _AbsorptionColor;
+#ifdef TESSELLATION_ON
+            float _TessellationFactor;
+            float _TessellationFactorMinDistance;
+            float _TessellationFactorMaxDistance;
+            float _TessellationFactorTriangleSize;
+            float _TessellationShapeFactor;
+            float _TessellationBackFaceCullEpsilon;
+            float _TessellationObjectScale;
+            float _TessellationTilingScale;
+            float _TessellationMaxDisplacement;
+#endif
+
+            float GetTessellationFactor(AttributesMesh input)
+            {
+                return _TessellationFactor;
+            }
+
+            float GetMaxDisplacement()
+            {
+                return _TessellationMaxDisplacement;
+            }
 
             void GetSurfaceAndBuiltinData(FragInputs fragInputs, float3 viewDirection, inout PositionInputs posInput, out SurfaceData surfaceData, out BuiltinData builtinData)
             {
@@ -180,6 +241,8 @@ Shader "HanPiWater/WaterMesh"
 
             #pragma vertex Vert
             #pragma fragment Frag
+            #pragma hull Hull
+            #pragma domain Domain
 
             ENDHLSL
         }

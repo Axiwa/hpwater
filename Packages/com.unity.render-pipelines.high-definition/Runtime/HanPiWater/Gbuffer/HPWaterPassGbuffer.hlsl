@@ -22,7 +22,9 @@ PackedVaryingsType Vert(AttributesMesh inputMesh)
     else
 #endif
     {
-        ApplyHPWaterFluidDisplacement(inputMesh);
+#ifndef TESSELLATION_ON
+        ApplyHPWaterFluidDisplacement(input);
+#endif
         varyingsType.vmesh = VertMesh(inputMesh);
     }
 
@@ -34,6 +36,7 @@ PackedVaryingsType Vert(AttributesMesh inputMesh)
 PackedVaryingsToPS VertTesselation(VaryingsToDS input)
 {
     VaryingsToPS output;
+    ApplyHPWaterFluidDisplacementToDS(input.vmesh);
     output.vmesh = VertMeshTesselation(input.vmesh);
     return PackVaryingsToPS(output);
 }

@@ -345,7 +345,7 @@ namespace UnityEngine.Rendering.HighDefinition
             virtualCamera.orthographic = true;
             virtualCamera.orthographicSize = orthoHeight; // 正交相机的半高
             virtualCamera.aspect = orthoWidth / orthoHeight;
-            virtualCamera.nearClipPlane = 0.1f; // TODO
+            virtualCamera.nearClipPlane = nearClip - 0.1f; // TODO
             virtualCamera.farClipPlane = hdCamera.camera.farClipPlane; // TODO
 
             // 从配置好的相机获取正确的矩阵
@@ -761,7 +761,7 @@ namespace UnityEngine.Rendering.HighDefinition
                     // 设置波动方程参数
                     ctx.cmd.SetComputeFloatParam(cs, HPWaterFluidDynamicsShaderIDs._WaveSpeed, data.inputData.waveSpeed);
                     ctx.cmd.SetComputeFloatParam(cs, HPWaterFluidDynamicsShaderIDs._DampingFactor, data.inputData.dampingFactor);
-                    ctx.cmd.SetComputeFloatParam(cs, HPWaterFluidDynamicsShaderIDs._DeltaTime, Time.deltaTime);
+                    ctx.cmd.SetComputeFloatParam(cs, HPWaterFluidDynamicsShaderIDs._DeltaTime, 0.333f);
                     
                     // 设置波源参数
                     ctx.cmd.SetComputeVectorParam(cs, HPWaterFluidDynamicsShaderIDs._WaveSourceUV, new Vector2(UnityEngine.Random.value * 0.5f, UnityEngine.Random.value * 0.5f));

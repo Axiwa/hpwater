@@ -19,7 +19,9 @@ float3 HPWaterCausticGetWorldSpaceNormalizeViewDir(float3 positionRWS)
 #define TransformWorldToHClip HPWaterCausticTransformWorldToHClip
 #include "Packages/com.unity.render-pipelines.high-definition/Runtime/RenderPipeline/ShaderPass/VertMesh.hlsl"
 #undef TransformWorldToHClip
+
 #include "Packages/com.unity.render-pipelines.high-definition/Runtime/HanPiWater/FluidDynamics/HPWaterFluidSample.hlsl"
+
 #if defined(WRITE_DECAL_BUFFER) && !defined(_DISABLE_DECALS)
 #include "Packages/com.unity.render-pipelines.high-definition/Runtime/Material/Decal/DecalPrepassBuffer.hlsl"
 #endif
@@ -40,7 +42,9 @@ PackedVaryingsType Vert(AttributesMesh input)
     else
 #endif
     {
+#ifndef TESSELLATION_ON
         ApplyHPWaterFluidDisplacement(input);
+#endif
         varyingsType.vmesh = VertMesh(input);
     }
 
@@ -52,6 +56,7 @@ PackedVaryingsType Vert(AttributesMesh input)
 PackedVaryingsToPS VertTesselation(VaryingsToDS input)
 {
     VaryingsToPS output;
+    ApplyHPWaterFluidDisplacementToDS(input.vmesh);
     output.vmesh = VertMeshTesselation(input.vmesh);
     return PackVaryingsToPS(output);
 }
