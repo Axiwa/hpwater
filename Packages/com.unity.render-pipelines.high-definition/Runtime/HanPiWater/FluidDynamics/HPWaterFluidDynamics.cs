@@ -764,7 +764,7 @@ namespace UnityEngine.Rendering.HighDefinition
                     ctx.cmd.SetComputeFloatParam(cs, HPWaterFluidDynamicsShaderIDs._DeltaTime, 0.333f);
                     
                     // 设置波源参数
-                    ctx.cmd.SetComputeVectorParam(cs, HPWaterFluidDynamicsShaderIDs._WaveSourceUV, new Vector2(UnityEngine.Random.value * 0.5f, UnityEngine.Random.value * 0.5f));
+                    ctx.cmd.SetComputeVectorParam(cs, HPWaterFluidDynamicsShaderIDs._WaveSourceUV, data.inputData.waveSourceUV);
                     ctx.cmd.SetComputeFloatParam(cs, HPWaterFluidDynamicsShaderIDs._WaveSourceIntensity, data.inputData.waveSourceIntensity);
                     ctx.cmd.SetComputeFloatParam(cs, HPWaterFluidDynamicsShaderIDs._WaveSourceRadius, data.inputData.waveSourceRadius);
                     

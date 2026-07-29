@@ -12,7 +12,7 @@ Shader "HanPiWater/WaterMesh"
         _FoamIntensity("Foam Intensity", Range(0.0, 1.0)) = 0.0
 
         [Enum(None, 0, Phong, 1)] _TessellationMode("Tessellation mode", Float) = 0
-        _TessellationFactor("Tessellation Factor", Range(0.0, 64.0)) = 64
+        _TessellationFactor("Tessellation Factor", Range(0.0, 256.0)) = 256
         _TessellationFactorMinDistance("Tessellation start fading distance", Float) = 0
         _TessellationFactorMaxDistance("Tessellation end fading distance", Float) = 0
         _TessellationFactorTriangleSize("Tessellation triangle size", Float) = 0
@@ -105,7 +105,6 @@ Shader "HanPiWater/WaterMesh"
             float _TessellationObjectScale;
             float _TessellationTilingScale;
             float _TessellationMaxDisplacement;
-#endif
 
             float GetTessellationFactor(AttributesMesh input)
             {
@@ -116,6 +115,10 @@ Shader "HanPiWater/WaterMesh"
             {
                 return _TessellationMaxDisplacement;
             }
+
+            #pragma hull Hull
+            #pragma domain Domain
+#endif
 
             void GetSurfaceAndBuiltinData(FragInputs fragInputs, float3 viewDirection, inout PositionInputs posInput, out SurfaceData surfaceData, out BuiltinData builtinData)
             {
@@ -135,8 +138,7 @@ Shader "HanPiWater/WaterMesh"
 
             #pragma vertex Vert
             #pragma fragment Frag
-            #pragma hull Hull
-            #pragma domain Domain
+
 
             ENDHLSL
         }
@@ -211,7 +213,7 @@ Shader "HanPiWater/WaterMesh"
             float _TessellationObjectScale;
             float _TessellationTilingScale;
             float _TessellationMaxDisplacement;
-#endif
+
 
             float GetTessellationFactor(AttributesMesh input)
             {
@@ -222,6 +224,10 @@ Shader "HanPiWater/WaterMesh"
             {
                 return _TessellationMaxDisplacement;
             }
+
+            #pragma hull Hull
+            #pragma domain Domain
+#endif
 
             void GetSurfaceAndBuiltinData(FragInputs fragInputs, float3 viewDirection, inout PositionInputs posInput, out SurfaceData surfaceData, out BuiltinData builtinData)
             {
@@ -241,8 +247,7 @@ Shader "HanPiWater/WaterMesh"
 
             #pragma vertex Vert
             #pragma fragment Frag
-            #pragma hull Hull
-            #pragma domain Domain
+
 
             ENDHLSL
         }

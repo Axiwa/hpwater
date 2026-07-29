@@ -63,6 +63,13 @@ public class HPWaterParametersProvider : MonoBehaviour
     public float dampingFactor = 0.001f;
     public float waveSourceRadius = 1.0f;
 
+    [SerializeField] LayerMask waterInteractionMask;
+    [SerializeField] float clickStrength = 4.0f;
+    [SerializeField] float clickRadiusPixels = 16.0f;
+    private Vector2 m_WaveSourceUV = new Vector2(-1, -1);
+    private float m_WaveSourceIntensity;
+    private int m_WaveSourceFrame = -1;
+
     private HDRenderPipeline.WaterRefractionInputData ProvideWaterRefraction()
     {
         return new HDRenderPipeline.WaterRefractionInputData
@@ -118,6 +125,7 @@ public class HPWaterParametersProvider : MonoBehaviour
 
     private HDRenderPipeline.HPWaterFluidDynamicsInputData ProvideFluidDynamics()
     {
+        bool hasSource = m_WaveSourceFrame == Time.frameCount;
         return new HDRenderPipeline.HPWaterFluidDynamicsInputData
         {
             startFrameBakeProcess         = startFrameBakeProcess,
@@ -130,8 +138,8 @@ public class HPWaterParametersProvider : MonoBehaviour
             waveSpeed                     = waveSpeed,
             dampingFactor                 = dampingFactor,
             waveSourceRadius              = waveSourceRadius,
-            waveSourceUV                  = new Vector2(0.5f, 0.5f),
-            waveSourceIntensity           = 0.1f
+            waveSourceUV                  = hasSource ? m_WaveSourceUV : new Vector2(UnityEngine.Random.value * 0.5f, UnityEngine.Random.value * 0.5f),
+            waveSourceIntensity           = hasSource ? m_WaveSourceIntensity : 1.0f
         };
     }
 
@@ -170,5 +178,49 @@ public class HPWaterParametersProvider : MonoBehaviour
         HDRenderPipeline.OnGetCausticParameters             -= ProvideCaustic;
         HDRenderPipeline.OnGetHPWaterFluidDynamicsInputData -= ProvideFluidDynamics;
         HDRenderPipeline.OnGetHPWaterGlobalParams           -= ProvideGlobalParams;
+    }
+
+    private void Update()
+    {
+        if (Input.GetMouseButton(0))
+            TriggerWaveSource(-clickStrength);
+
+        if (Input.GetMouseButton(1))
+            TriggerWaveSource(clickStrength / 2);
+    }
+
+    private void TriggerWaveSource(float intensity)
+    {
+        Camera cam = Camera.main;
+
+        if (cam == null)
+            return;
+
+        Ray ray = cam.ScreenPointToRay(Input.mousePosition);
+
+        if (!Physics.Raycast(
+                ray,
+                out RaycastHit hit,
+                10000.0f,
+                waterInteractionMask))
+        {
+            return;
+        }
+
+        Vector3 worldPos = hit.point;
+
+        Vector2 uv = new Vector2(
+            (worldPos.x - fluidBoxCenter.x) / fluidBoxSize.x + 0.5f,
+            (worldPos.z - fluidBoxCenter.z) / fluidBoxSize.z + 0.5f);
+
+        if (uv.x < 0 || uv.x > 1 ||
+            uv.y < 0 || uv.y > 1)
+        {
+            return;
+        }
+
+        m_WaveSourceUV = uv;
+        m_WaveSourceIntensity = intensity;
+        m_WaveSourceFrame = Time.frameCount;
     }
 }

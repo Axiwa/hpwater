@@ -23,7 +23,7 @@ PackedVaryingsType Vert(AttributesMesh inputMesh)
 #endif
     {
 #ifndef TESSELLATION_ON
-        ApplyHPWaterFluidDisplacement(input);
+        ApplyHPWaterFluidDisplacement(inputMesh);
 #endif
         varyingsType.vmesh = VertMesh(inputMesh);
     }
