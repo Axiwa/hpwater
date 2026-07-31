@@ -172,7 +172,7 @@ float HenyeyPhase(float cosTheta,float phaseG)
 {
     float g2 = phaseG * phaseG;
     float denom = 1.0 + g2 - 2.0 * phaseG * cosTheta;
-    float mieScatter = (1.0 - g2) * rcp(pow(abs(denom), 1.5));
+    float mieScatter = (1.0 - g2) * rcp(4.0 * PI * pow(abs(denom), 1.5));
     return  mieScatter;
 }
 
@@ -189,10 +189,10 @@ float3 CaculateScatterPhase(float cosTheta,float phaseG)
     //瑞丽散射占比5%，米氏散射占比95%
     static const float3 betaRayleigh = float3(5.8e-6, 13.5e-6, 33.1e-6); // ∝ 1/λ⁴        
     float rayleighPhase = (1.0 + cosTheta * cosTheta) * (3 / (16 * PI));
-    float3 rayleighScatter = betaRayleigh * rayleighPhase * 1e6;
+    float3 rayleighScatter = betaRayleigh * rayleighPhase;
 
     float mieScatter = HenyeyPhase(cosTheta,phaseG);
-    float3 scatterPhase = rayleighScatter * 0.05 + float3(mieScatter,mieScatter,mieScatter) * 0.95;
+    float3 scatterPhase = rayleighScatter * 0.1 + mieScatter * 0.9;
     return scatterPhase;
 }
 
@@ -336,7 +336,8 @@ float3 WaterVolumetrics(
         //causticValue = 1;
 
         // ===== 一次散射：直接光照 =====
-        float cosTheta = dot(safeNormalize(samplePos), safeNormalize(LightDir));
+        float3 V = GetWorldSpaceNormalizeViewDir(samplePos);
+        float cosTheta = dot(V, safeNormalize(LightDir));
         float3 scatterPhase = CaculateScatterPhase(cosTheta,_PhaseG);
         float3 directLighting = LightColor * shadowValue * causticValue;
         float directCrossDistance = dd * NoLinearRayLength + SunDepth * dd;        

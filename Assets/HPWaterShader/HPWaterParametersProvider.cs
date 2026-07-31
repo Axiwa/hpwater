@@ -75,7 +75,7 @@ public class HPWaterParametersProvider : MonoBehaviour
         return new HDRenderPipeline.WaterRefractionInputData
         {
             useRayMarching = useRayMarching,
-            // rayMarchingSampleCount = rayMarchingSampleCount
+            rayMarchingSampleCount = rayMarchingSampleCount
         };
     }
 
@@ -139,7 +139,7 @@ public class HPWaterParametersProvider : MonoBehaviour
             dampingFactor                 = dampingFactor,
             waveSourceRadius              = waveSourceRadius,
             waveSourceUV                  = hasSource ? m_WaveSourceUV : new Vector2(UnityEngine.Random.value * 0.5f, UnityEngine.Random.value * 0.5f),
-            waveSourceIntensity           = hasSource ? m_WaveSourceIntensity : 1.0f
+            waveSourceIntensity           = 0.0f//hasSource ? m_WaveSourceIntensity : 1.0f
         };
     }
 
