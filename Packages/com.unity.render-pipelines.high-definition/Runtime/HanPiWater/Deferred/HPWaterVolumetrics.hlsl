@@ -270,10 +270,10 @@ float3 WaterVolumetrics(
     float3 ScatterCoefficient       = waterLightLoopData.ScatterCoefficient;
     float3 NoLinearRayDirection     = waterLightLoopData.NoLinearRayDirection;
     float3 LinearRayDirection       = waterLightLoopData.LinearRayDirection;
-    float3 DynamicRayDirection       = waterLightLoopData.NoLinearDynamicRayDirection;
+    float3 DynamicRayDirection      = waterLightLoopData.NoLinearDynamicRayDirection;
     float NoLinearRayLength         = waterLightLoopData.NoLinearRayLength;    
     float AmbientDepth              = waterLightLoopData.NoLinearAmbientDepth;
-    float SunDepth                  = waterLightLoopData.NoLinearSunDepth;    
+    float SunDepth                  = AmbientDepth * max(rcp(abs(safeNormalize(LightDir).y)), 0.25);   
     float Dither                    = waterLightLoopData.Dither;   
 
     accumTransmittance      = 1;
@@ -333,14 +333,14 @@ float3 WaterVolumetrics(
         
         causticValue = ComputeCausticValue(samplePosLinear,shadowValue,featureFlags,lightLoopContext,posInput,bsdfData); 
         //焦散的分布会从水面到水下，呈无分散到有分散，到达底部将会变成受折射后的焦散图采样结果
-        //causticValue = 1;
+        causticValue = 1;
 
         // ===== 一次散射：直接光照 =====
         float3 V = GetWorldSpaceNormalizeViewDir(samplePos);
-        float cosTheta = dot(V, safeNormalize(LightDir));
+        float cosTheta = dot(V, -safeNormalize(LightDir));
         float3 scatterPhase = CaculateScatterPhase(cosTheta,_PhaseG);
         float3 directLighting = LightColor * shadowValue * causticValue;
-        float directCrossDistance = dd * NoLinearRayLength + SunDepth * dd;        
+        float directCrossDistance = dd * NoLinearRayLength + SunDepth * d;        
 
         // 先计算不带相位的基础散射（phase = 1）
         float3 baseScatter = CaculateScatteredLight(

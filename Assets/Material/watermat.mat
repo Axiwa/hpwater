@@ -267,7 +267,7 @@ Material:
     - _FoamColor: {r: 4, g: 4, b: 4, a: 1}
     - _InvPrimScale: {r: 1, g: 1, b: 0, a: 0}
     - _IridescenceThicknessRemap: {r: 0, g: 1, b: 0, a: 0}
-    - _ScatterColor: {r: 0.7264151, g: 0.56537026, b: 0.56537026, a: 1}
+    - _ScatterColor: {r: 0.4811321, g: 0.36084908, b: 0.36084908, a: 1}
     - _SpecularColor: {r: 1, g: 1, b: 1, a: 1}
     - _ThicknessRemap: {r: 0, g: 1, b: 0, a: 0}
     - _TransmittanceColor: {r: 1, g: 1, b: 1, a: 1}
