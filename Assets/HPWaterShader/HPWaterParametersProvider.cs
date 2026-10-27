@@ -138,7 +138,7 @@ public class HPWaterParametersProvider : MonoBehaviour
             waveSpeed                     = waveSpeed,
             dampingFactor                 = dampingFactor,
             waveSourceRadius              = waveSourceRadius,
-            waveSourceUV                  = new Vector2(0.5f, 0.5f), //hasSource ? m_WaveSourceUV : new Vector2(UnityEngine.Random.value * 0.5f, UnityEngine.Random.value * 0.5f),
+            waveSourceUV                  = hasSource ? m_WaveSourceUV : new Vector2(UnityEngine.Random.value * 0.5f, UnityEngine.Random.value * 0.5f),
             waveSourceIntensity           = hasSource ? m_WaveSourceIntensity : 1.0f
         };
     }
@@ -201,8 +201,7 @@ public class HPWaterParametersProvider : MonoBehaviour
         if (!Physics.Raycast(
                 ray,
                 out RaycastHit hit,
-                10000.0f,
-                waterInteractionMask))
+                10000.0f))
         {
             return;
         }
